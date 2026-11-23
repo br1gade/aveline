@@ -4,14 +4,25 @@ import { Link } from 'react-router';
 import { PublicFrame } from '@/features/public-event';
 import { APP_PATHS, ROUTE_PATHS } from '@/route-paths';
 
+import type { PaymentOptions } from '@/api/payment-options';
+
+import { isFree } from '../plans';
 import type { Plan } from '../types';
-import { PlanCards } from './plan-list';
+import { PilotNotice } from './pilot-notice';
+import { AfterPilot, PlanCards } from './plan-list';
 
 /**
  * The price list for anyone, signed in or not (docs/API.md §6; design PD-145). Choosing a plan
  * needs an organization, so each plan leads to creating an account; the billing page chooses.
+ * While payments are off, a paid plan is marked as coming after the pilot instead (C-47).
  */
-export function PricingPage({ plans }: { plans: readonly Plan[] }) {
+export function PricingPage({
+  plans,
+  payment,
+}: {
+  plans: readonly Plan[];
+  payment: PaymentOptions;
+}) {
   const { t } = useTranslation('billing');
   const { t: common } = useTranslation('common');
   return (
@@ -22,16 +33,21 @@ export function PricingPage({ plans }: { plans: readonly Plan[] }) {
         </h1>
         <p className="m-0">{t('pricing.lead')}</p>
       </div>
+      {payment.isPaymentAvailable ? null : <PilotNotice />}
       <PlanCards
         plans={plans}
-        action={() => (
-          <Link
-            to={APP_PATHS.register}
-            className="text-action mt-auto inline-flex min-h-11 items-center self-start underline decoration-1 underline-offset-3 hover:decoration-2"
-          >
-            {t('pricing.start')}
-          </Link>
-        )}
+        action={(plan) =>
+          !payment.isPaymentAvailable && !isFree(plan.priceMinor) ? (
+            <AfterPilot />
+          ) : (
+            <Link
+              to={APP_PATHS.register}
+              className="text-action mt-auto inline-flex min-h-11 items-center self-start underline decoration-1 underline-offset-3 hover:decoration-2"
+            >
+              {t('pricing.start')}
+            </Link>
+          )
+        }
       />
       <Link
         to={ROUTE_PATHS.privacyRequest}

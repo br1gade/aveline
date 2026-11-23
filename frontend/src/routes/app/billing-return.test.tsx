@@ -18,10 +18,19 @@ const API = `${ORIGIN}/api/v1`;
 const server = setupServer();
 const ADDRESS = 'http://app.test/billing/return?orderId=secret&lang=hy';
 const load = () =>
-  clientLoader({
-    request: new Request(ADDRESS),
-    serverLoader: () => Promise.resolve({ provider: 'FAKE' }),
-  } as unknown as Parameters<typeof clientLoader>[0]);
+  clientLoader({ request: new Request(ADDRESS) } as unknown as Parameters<typeof clientLoader>[0]);
+
+/** Whether a plan can be paid for now, and at which bank (FR-109). */
+function payments(isPaymentAvailable: boolean) {
+  server.use(
+    http.get(`${API}/payment-options`, () =>
+      HttpResponse.json({
+        isPaymentAvailable,
+        providers: isPaymentAvailable ? ['AMERIABANK'] : [],
+      }),
+    ),
+  );
+}
 
 async function redirectOf(run: Promise<unknown>): Promise<string | null> {
   const thrown = await run.then(
@@ -73,6 +82,7 @@ describe('coming back from the bank', () => {
   it('confirms the newest invoice and carries the bank to pay again at', async () => {
     signedIn();
     memberOf('a');
+    payments(true);
     const confirmed: string[] = [];
     const newest = { number: 'AV-2026-000001', status: 'ISSUED' };
     server.use(
@@ -83,7 +93,7 @@ describe('coming back from the bank', () => {
       }),
     );
     await expect(load()).resolves.toMatchObject({
-      provider: 'FAKE',
+      provider: 'AMERIABANK',
       read: { kind: 'confirmed', invoice: { status: 'PAID' } },
     });
     expect(confirmed).toEqual(['AV-2026-000001']);
@@ -92,8 +102,34 @@ describe('coming back from the bank', () => {
   it('says there is nothing to confirm when there is no invoice', async () => {
     signedIn();
     memberOf('a');
+    payments(true);
     server.use(http.get(`${API}/invoices`, () => HttpResponse.json([])));
     await expect(load()).resolves.toMatchObject({ read: { kind: 'nothing' } });
+  });
+
+  it('keeps a confirmed payment when the payment options can’t be read', async () => {
+    signedIn();
+    memberOf('a');
+    server.use(
+      http.get(`${API}/payment-options`, () => HttpResponse.json({}, { status: 503 })),
+      http.get(`${API}/invoices`, () => HttpResponse.json([{ number: 'AV-1', status: 'ISSUED' }])),
+      http.post(`${API}/invoices/:number/confirm`, () =>
+        HttpResponse.json({ number: 'AV-1', status: 'PAID' }),
+      ),
+    );
+    const loaded = await load();
+    expect(loaded).toMatchObject({ read: { kind: 'confirmed', invoice: { status: 'PAID' } } });
+    expect(loaded.provider).toBeUndefined();
+  });
+
+  it('names no bank to pay again at while payments are off', async () => {
+    signedIn();
+    memberOf('a');
+    payments(false);
+    server.use(http.get(`${API}/invoices`, () => HttpResponse.json([])));
+    const loaded = await load();
+    expect(loaded).toMatchObject({ read: { kind: 'nothing' } });
+    expect(loaded.provider).toBeUndefined();
   });
 });
 

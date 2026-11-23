@@ -30,6 +30,7 @@
   "problems": {
     "rate-limited": "Too many attempts. Wait a minute, then try again.",
     "unreachable": "We couldn’t reach Aveline. Check your connection and try again.",
+    "reconnected": "You’re connected again. Try again.",
     "server": "Something went wrong on our side. Please try again in a moment."
   },
   "dialog": {
@@ -57,5 +58,9 @@
     "privacy": "Privacy notice",
     "footerLabel": "Privacy and help"
   },
-  "skipToContent": "Skip to content"
+  "skipToContent": "Skip to content",
+  "zoneCity": {
+    "yerevan": "Yerevan",
+    "moscow": "Moscow"
+  }
 }

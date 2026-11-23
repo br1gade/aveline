@@ -8,7 +8,10 @@ import type { AttendanceRecord, Household, ImportRecord, ImportResult } from './
 
 type Schemas = components['schemas'];
 
-/** Every household and guest, read where it arrives: no token goes further (`read.ts`). */
+/**
+ * Every household and guest, read where it arrives (`read.ts`). A guest's token is kept only as
+ * `Guest.link`, for the host to copy (design PD-213): never log, store or send a guest object.
+ */
 export async function listGuests(
   api: ApiClient,
   eventId: string,

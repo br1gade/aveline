@@ -57,6 +57,33 @@ describe("a public event's page (PD-78)", () => {
     ).toBeInTheDocument();
   });
 
+  it('says paid tickets cannot be bought yet, before anyone chooses, while payments are off', () => {
+    const { checkout } = publicEventWire() as { checkout: Record<string, unknown> };
+    const payment = { isPaymentAvailable: false, providers: [] };
+    renderPage(publicEventWire({ checkout: { ...checkout, payment } }));
+    expect(screen.getByText(/Paid tickets can’t be bought yet/u)).toBeInTheDocument();
+  });
+
+  it('says nothing of the pilot when every ticket is free, though payments are off', () => {
+    const wire = publicEventWire() as {
+      checkout: Record<string, unknown>;
+      ticketTypes: Array<{ priceMinor: string }>;
+    };
+    const payment = { isPaymentAvailable: false, providers: [] };
+    renderPage(
+      publicEventWire({
+        checkout: { ...wire.checkout, payment },
+        ticketTypes: wire.ticketTypes.filter((type) => type.priceMinor === '0'),
+      }),
+    );
+    expect(screen.queryByText(/Paid tickets can’t be bought yet/u)).not.toBeInTheDocument();
+  });
+
+  it('says nothing of the pilot while payments are on', () => {
+    renderPage();
+    expect(screen.queryByText(/Paid tickets can’t be bought yet/u)).not.toBeInTheDocument();
+  });
+
   it('goes on to checkout with the chosen tickets and the language in the address', async () => {
     const { user } = renderPage();
     expect(screen.getByRole('button', { name: 'Continue' })).toBeDisabled();
@@ -82,7 +109,7 @@ describe("a public event's page (PD-78)", () => {
     expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
   });
 
-  it('says in four languages that an address opens no event', async () => {
+  it('says in each offered language that an address opens no event', async () => {
     const Stub = createRoutesStub([{ path: '/events/:slug', Component: EventNotFound }]);
     render(
       <I18nextProvider i18n={createI18n('en')}>
@@ -94,7 +121,7 @@ describe("a public event's page (PD-78)", () => {
     ).toBeInTheDocument();
     expect(screen.getByText('Այս միջոցառումը հասանելի չէ։')).toHaveAttribute('lang', 'hy');
     expect(screen.getByText('Это мероприятие недоступно.')).toHaveAttribute('lang', 'ru');
-    expect(screen.getByText('Cet événement n’est pas disponible.')).toHaveAttribute('lang', 'fr');
+    expect(screen.queryByText('Cet événement n’est pas disponible.')).not.toBeInTheDocument();
   });
 
   it('links the privacy notice and Help under the page (audit F-03)', async () => {

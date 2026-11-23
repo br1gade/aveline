@@ -2,10 +2,16 @@ import type { Page } from '@playwright/test';
 
 import { apiAs, must } from './support/api';
 import { expectTokenUncached } from './support/checks';
-import { newHost, testAddress, ticketedEvent, type TicketedEvent } from './support/factories';
+import {
+  newEvent,
+  newHost,
+  testAddress,
+  ticketedEvent,
+  type TicketedEvent,
+} from './support/factories';
 import { expect, test } from './support/fixtures';
 import { E2E } from './support/env';
-import { isDevelopmentStack, NOT_DEVELOPMENT } from './support/stack';
+import { arePaymentsOn, isDevelopmentStack, NOT_DEVELOPMENT, PAYMENTS_OFF } from './support/stack';
 
 /** From the event's own page, the tickets chosen, to checkout with the buyer as the one person. */
 async function checkout(page: Page, event: TicketedEvent, ticket: string): Promise<void> {
@@ -29,7 +35,8 @@ async function checkout(page: Page, event: TicketedEvent, ticket: string): Promi
 /**
  * Buying tickets (pilot Milestone C; docs/API.md §4, "Buying tickets"): the listing's card with its
  * date (FR-92), a free ticket from the event's page to the order and its door code, and a paid one
- * answered at the FAKE bank, paid and declined (FR-151), or refused where payments are off.
+ * answered at the FAKE bank, paid and declined (FR-151). Where payments are off no paid ticket
+ * can be made, so those skip, and a host is offered free tickets only.
  */
 test.describe('tickets', () => {
   test('the listing shows the event with its date in the event’s zone', async ({ page }) => {
@@ -129,43 +136,50 @@ test.describe('tickets', () => {
     expect(elsewhere).toEqual([]);
   });
 
-  test('a paid ticket is refused while payments are off, or waits at the bank', async ({
-    page,
-  }) => {
+  test('a paid ticket goes to the bank and waits there', async ({ page }) => {
+    test.skip(!(await arePaymentsOn()), PAYMENTS_OFF);
     const event = await ticketedEvent(await newHost());
     await checkout(page, event, 'General');
     await page.getByRole('button', { name: 'Continue to payment' }).click();
 
-    const refused = page.getByText(/Paid tickets can’t be bought yet/u);
-    const waiting = page.getByRole('heading', { name: 'Waiting for your bank' });
     if (!(await isDevelopmentStack())) {
-      // A real bank's test page is somewhere else: refused here, or gone there.
+      // A real bank's test page is somewhere else.
       const ours = new URL(E2E.baseUrl).origin;
-      await expect
-        .poll(async () => (await refused.isVisible()) || new URL(page.url()).origin !== ours, {
-          timeout: 20_000,
-        })
-        .toBe(true);
-      test.skip(!(await refused.isVisible()), NOT_DEVELOPMENT);
+      await expect.poll(() => new URL(page.url()).origin !== ours, { timeout: 20_000 }).toBe(true);
+      test.skip(true, NOT_DEVELOPMENT);
       return;
     }
-    await expect(refused.or(waiting)).toBeVisible({ timeout: 20_000 });
-    if (await waiting.isVisible()) {
-      // The FAKE bank returns at once and the payment waits, until the payer answers at the bank.
-      await expect(page.getByText(/^Held for \d+ more minutes?$/u)).toBeVisible();
-    }
+    // The FAKE bank returns at once and the payment waits, until the payer answers at the bank.
+    await expect(page.getByRole('heading', { name: 'Waiting for your bank' })).toBeVisible({
+      timeout: 20_000,
+    });
+    await expect(page.getByText(/^Held for \d+ more minutes?$/u)).toBeVisible();
+  });
+
+  test('while payments are off, a host is offered free tickets only (audit F-09)', async ({
+    page,
+    host,
+    signedIn,
+  }) => {
+    test.skip(await arePaymentsOn(), 'Payments are on on this stack');
+    // The real API's answer reaching the form; the unit tests cover the rest.
+    const event = await newEvent(host);
+    await signedIn(host.email);
+    await page.goto(`/app/events/${event.id}/tickets/types/new`);
+    await expect(page.getByLabel('Price (AMD)')).toHaveValue('0');
+    await expect(page.getByText(/every ticket is free/u)).toBeVisible();
   });
 
   test('Back after paying shows the order, not a form for a second one', async ({ page, seen }) => {
     // The bank's answer is given at the FAKE bank, which only a development stack has.
     test.skip(!(await isDevelopmentStack()), NOT_DEVELOPMENT);
+    test.skip(!(await arePaymentsOn()), PAYMENTS_OFF);
     const event = await ticketedEvent(await newHost());
     await checkout(page, event, 'General');
     await page.getByRole('button', { name: 'Continue to payment' }).click();
-    const waiting = page.getByRole('heading', { name: 'Waiting for your bank' });
-    const refused = page.getByText(/Paid tickets can’t be bought yet/u);
-    await expect(refused.or(waiting)).toBeVisible({ timeout: 20_000 });
-    test.skip(await refused.isVisible(), 'Payments are off on this stack (PILOT_MODE)');
+    await expect(page.getByRole('heading', { name: 'Waiting for your bank' })).toBeVisible({
+      timeout: 20_000,
+    });
     const returned = seen.requests.find((address) => address.includes('fakePayment=fake_'));
     const orderNumber =
       returned && new URL(returned).searchParams.get('fakePayment')?.replace(/^fake_/u, '');
@@ -195,13 +209,13 @@ test.describe('tickets', () => {
     }) => {
       // The bank's answer is given at the FAKE bank, which only a development stack has.
       test.skip(!(await isDevelopmentStack()), NOT_DEVELOPMENT);
+      test.skip(!(await arePaymentsOn()), PAYMENTS_OFF);
       const event = await ticketedEvent(await newHost());
       await checkout(page, event, 'General');
       await page.getByRole('button', { name: 'Continue to payment' }).click();
-      const waiting = page.getByRole('heading', { name: 'Waiting for your bank' });
-      const refused = page.getByText(/Paid tickets can’t be bought yet/u);
-      await expect(refused.or(waiting)).toBeVisible({ timeout: 20_000 });
-      test.skip(await refused.isVisible(), 'Payments are off on this stack (PILOT_MODE)');
+      await expect(page.getByRole('heading', { name: 'Waiting for your bank' })).toBeVisible({
+        timeout: 20_000,
+      });
 
       // What the payer does at the FAKE bank (FR-151): its order number is on the return address.
       const returned = seen.requests.find((address) => address.includes('fakePayment=fake_'));

@@ -26,6 +26,7 @@ export const EVENT_WIDE_RULES: CheckoutRules = {
     },
   ],
   agreementsBeforeDoor: [],
+  payment: { isPaymentAvailable: true, providers: ['FAKE'] },
 };
 
 /** The same per venue, with free-text drinks and an agreement asked before the door. */
@@ -48,6 +49,7 @@ export const PER_VENUE_RULES: CheckoutRules = {
     },
   ],
   agreementsBeforeDoor: [{ questionId: 'q-rules', prompt: 'I accept the house rules' }],
+  payment: { isPaymentAvailable: true, providers: ['FAKE'] },
 };
 
 /** A public event as checkout receives it, read (sample content, design AS-6). */

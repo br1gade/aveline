@@ -1,3 +1,4 @@
+import { NO_PAYMENTS, type PaymentOptions, type PaymentProvider } from '@/api/payment-options';
 import type {
   BlockMedia,
   MediaVariant,
@@ -127,6 +128,26 @@ function readAgreement(wire: Wire): AgreementBeforeDoor[] {
     : [];
 }
 
+/** Every bank the schema names: a bank added to it breaks the build here until it is listed. */
+const KNOWN_PROVIDERS = {
+  AMERIABANK: true,
+  INECOBANK: true,
+  IDBANK: true,
+  FAKE: true,
+} satisfies Record<PaymentProvider, true>;
+const PROVIDERS = new Set<unknown>(Object.keys(KNOWN_PROVIDERS));
+
+/** Anything but a plain "yes, with these banks" reads as nothing payable. */
+function readPayment(value: unknown): PaymentOptions {
+  const wire = record(value);
+  const providers = Array.isArray(wire.providers)
+    ? wire.providers.filter((provider): provider is PaymentProvider => PROVIDERS.has(provider))
+    : [];
+  return wire.isPaymentAvailable === true && providers.length > 0
+    ? { isPaymentAvailable: true, providers }
+    : NO_PAYMENTS;
+}
+
 function readCheckout(value: unknown): CheckoutRules {
   const wire = record(value);
   const fields = record(wire.rsvpFields);
@@ -140,6 +161,7 @@ function readCheckout(value: unknown): CheckoutRules {
     drink: readFieldConfig(fields.drinkPreference),
     questions: list(wire.questions).flatMap(readQuestion),
     agreementsBeforeDoor: list(wire.acknowledgementsRequiredBeforeCheckIn).flatMap(readAgreement),
+    payment: readPayment(wire.payment),
   };
 }
 

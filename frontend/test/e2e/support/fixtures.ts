@@ -5,8 +5,8 @@ import { E2E } from './env';
 import { newHost, type Host } from './factories';
 import { signInPage } from './session';
 
-/** The four interface languages (C-5, C-23). */
-export const LANGUAGES = ['hy', 'ru', 'en', 'fr'] as const;
+/** The interface languages the pilot offers (C-5; French kept, not offered, since 14 Nov 2026). */
+export const LANGUAGES = ['hy', 'ru', 'en'] as const;
 export type Language = (typeof LANGUAGES)[number];
 
 interface Fixtures {

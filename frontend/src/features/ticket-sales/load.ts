@@ -1,4 +1,5 @@
 import type { ApiClient } from '@/api/client';
+import { fetchPaymentOptions, type PaymentOptions } from '@/api/payment-options';
 import { getEvent, type EventDetail } from '@/features/events';
 import { listMedia, type LibraryItem } from '@/features/invitation-design';
 
@@ -9,16 +10,19 @@ export interface TicketSalesData {
   event: EventDetail;
   types: TicketType[];
   listing: Listing | null;
+  /** While payments are off a ticket must be free, and one priced before can't be bought (F-09). */
+  payment: PaymentOptions;
 }
 
 /** The event, its ticket types and its announcement, in parallel. */
 export async function loadTicketSales(api: ApiClient, eventId: string): Promise<TicketSalesData> {
-  const [event, types, listing] = await Promise.all([
+  const [event, types, listing, payment] = await Promise.all([
     getEvent(api, eventId),
     listTicketTypes(api, eventId),
     getListing(api, eventId),
+    fetchPaymentOptions(api),
   ]);
-  return { event, types, listing };
+  return { event, types, listing, payment };
 }
 
 export interface TicketTypeData {
@@ -26,6 +30,8 @@ export interface TicketTypeData {
   /** `null` when adding one, or when it is no longer on the event. */
   type: TicketType | null;
   isGone: boolean;
+  /** Read before the price is typed: while payments are off, only a free ticket is offered. */
+  payment: PaymentOptions;
 }
 
 /** There is no single-type read; the list is short and holds everything the form shows. */
@@ -34,10 +40,13 @@ export async function loadTicketType(
   eventId: string,
   typeId: string | null,
 ): Promise<TicketTypeData> {
-  if (!typeId) return { event: await getEvent(api, eventId), type: null, isGone: false };
-  const [event, types] = await Promise.all([getEvent(api, eventId), listTicketTypes(api, eventId)]);
+  const [event, types, payment] = await Promise.all([
+    getEvent(api, eventId),
+    typeId ? listTicketTypes(api, eventId) : [],
+    fetchPaymentOptions(api),
+  ]);
   const type = types.find((candidate) => candidate.id === typeId) ?? null;
-  return { event, type, isGone: type === null };
+  return { event, type, isGone: typeId !== null && type === null, payment };
 }
 
 export interface AnnouncementData {

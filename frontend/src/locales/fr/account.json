@@ -34,7 +34,9 @@
     "title": "Se connecter",
     "submit": "Se connecter",
     "submitting": "Connexion…",
-    "refused": "Cet e-mail et ce mot de passe ne correspondent à aucun compte."
+    "refused": "Cet e-mail et ce mot de passe ne correspondent à aucun compte.",
+    "tooManyAttempts": "Trop de tentatives de connexion échouées pour ce compte. Attendez 15 minutes et réessayez. Si vous pensez que quelqu’un d’autre essaie votre mot de passe, réinitialisez-le.",
+    "resetInstead": "Réinitialiser votre mot de passe"
   },
   "register": {
     "title": "Créer un compte",

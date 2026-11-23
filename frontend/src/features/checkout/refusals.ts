@@ -116,7 +116,6 @@ function byStatus(error: ApiError): CheckoutRefusal | null {
     return { kind: 'noAnswer', requestId: error.requestId };
   }
   if (error.status === 429) return { kind: 'rateLimited' };
-  if (error.status === 403) return { kind: 'paymentsOff' };
   if (error.status === 404) return { kind: 'notFound' };
   if (error.code === 'ATTENDANCE_CHANGED') return { kind: 'staleRevision' };
   return isKeyConflict(error) ? { kind: 'changedIntent' } : null;
@@ -135,6 +134,8 @@ const TICKET_CODES: Readonly<Record<string, CheckoutRefusal>> = {
   TICKET_LAYOUT_CHANGED: { kind: 'layoutChanged' },
   TICKET_SELECTION_UNAVAILABLE: { kind: 'selectionUnavailable' },
   TICKET_BUYER_LIMIT_REACHED: { kind: 'buyerLimit' },
+  // The free pilot: a paid order while payments are off (audit F-09).
+  PAYMENTS_DISABLED: { kind: 'paymentsOff' },
 };
 
 export function checkoutRefusal(error: unknown): CheckoutRefusal {

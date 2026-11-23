@@ -12,7 +12,7 @@ import { DEFAULT_TIME_ZONE, timeZoneOptions } from '@/lib/time';
 import { AppForm, ProblemAlert, SubmitButton, useLeaveGuard } from '@/ui/app-form';
 
 import { createEvent } from '../api';
-import { languageOptions, NEW_EVENT_VALUES } from '../form-model';
+import { languageOptions, newEventValues } from '../form-model';
 import { eventPath } from '../paths';
 import { createPayload } from '../payload';
 import { markRefusals, useRefusedText } from '../refusals';
@@ -37,14 +37,14 @@ export function CreateEvent({
   lead?: string;
   create?: (api: ApiClient, body: Schemas['CreateEventDto']) => Promise<EventDetail>;
 }) {
-  const { t } = useTranslation('events');
+  const { t, i18n } = useTranslation('events');
   const navigate = useNavigate();
   const refused = useRefusedText('create');
   const [problem, setProblem] = useState<Problem | null>(null);
   const zones = useMemo(() => timeZoneOptions(DEFAULT_TIME_ZONE), []);
   const form = useForm<EventFormInput, unknown, EventFormValues>({
     resolver: zodResolver(schema),
-    defaultValues: NEW_EVENT_VALUES,
+    defaultValues: newEventValues(i18n.language),
   });
   const { isSubmitting } = form.formState;
   useLeaveGuard(form);

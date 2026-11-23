@@ -34,7 +34,15 @@ function TicketsBody({ event, isSalesClosed }: { event: PublicEvent; isSalesClos
   const { t } = useTranslation('public-event');
   if (isSalesClosed) return <Notice>{t('tickets.closed')}</Notice>;
   if (event.ticketTypes.length === 0) return <Notice>{t('tickets.none')}</Notice>;
-  return <TicketPicker event={event} />;
+  const hasUnpayableTickets =
+    !event.checkout.payment.isPaymentAvailable &&
+    event.ticketTypes.some((type) => type.priceMinor !== '0');
+  return (
+    <>
+      {hasUnpayableTickets ? <Notice>{t('tickets.paymentsOff')}</Notice> : null}
+      <TicketPicker event={event} />
+    </>
+  );
 }
 
 export interface EventPageProps {

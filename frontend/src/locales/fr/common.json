@@ -30,6 +30,7 @@
   "problems": {
     "rate-limited": "Trop de tentatives. Attendez une minute, puis réessayez.",
     "unreachable": "Impossible de joindre Aveline. Vérifiez votre connexion et réessayez.",
+    "reconnected": "Vous êtes de nouveau connecté. Réessayez.",
     "server": "Une erreur s’est produite de notre côté. Veuillez réessayer dans un instant."
   },
   "dialog": {
@@ -57,5 +58,9 @@
     "privacy": "Notice de confidentialité",
     "footerLabel": "Confidentialité et aide"
   },
-  "skipToContent": "Aller au contenu"
+  "skipToContent": "Aller au contenu",
+  "zoneCity": {
+    "yerevan": "Erevan",
+    "moscow": "Moscou"
+  }
 }

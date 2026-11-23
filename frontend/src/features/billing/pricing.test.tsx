@@ -43,9 +43,12 @@ afterEach(() => {
 });
 afterAll(() => server.close());
 
-function show(plans: Plan[], language: Language = 'en') {
+const PAYMENTS_ON = { isPaymentAvailable: true, providers: ['FAKE' as const] };
+const PAYMENTS_OFF = { isPaymentAvailable: false, providers: [] };
+
+function show(plans: Plan[], language: Language = 'en', payment = PAYMENTS_ON) {
   const Stub = createRoutesStub([
-    { path: '/pricing', Component: () => <PricingPage plans={plans} /> },
+    { path: '/pricing', Component: () => <PricingPage plans={plans} payment={payment} /> },
   ]);
   render(
     <I18nextProvider i18n={createI18n(language)}>
@@ -62,10 +65,12 @@ describe('the price list', () => {
         authorization = request.headers.get('authorization');
         return HttpResponse.json([{ ...managed, extra: 'dropped' }]);
       }),
+      http.get(`${ORIGIN}/api/v1/payment-options`, () => HttpResponse.json(PAYMENTS_OFF)),
     );
-    const { plans } = await loadPricing(new Request('https://aveline.test/pricing'));
+    const { plans, payment } = await loadPricing(new Request('https://aveline.test/pricing'));
     expect(authorization).toBeNull();
     expect(plans).toEqual([managed]);
+    expect(payment).toEqual(PAYMENTS_OFF);
     expect(typeof plans[0]?.priceMinor).toBe('string');
   });
 
@@ -88,6 +93,19 @@ describe('the price list', () => {
     }
   });
 
+  it('marks a paid plan as after the pilot while payments are off, and says so first', () => {
+    show([free, managed], 'en', PAYMENTS_OFF);
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Paid plans aren’t available during the free pilot.',
+    );
+    const [first, second] = screen.getAllByRole('listitem', { name: /Free tier|Managed/ });
+    expect(
+      within(first as HTMLElement).getByRole('link', { name: 'Create an account' }),
+    ).toBeVisible();
+    expect(within(second as HTMLElement).getByText('After the free pilot')).toBeInTheDocument();
+    expect(within(second as HTMLElement).queryByRole('link')).not.toBeInTheDocument();
+  });
+
   it('leads to asking about one’s data (PD-157)', () => {
     show([]);
     expect(screen.getByRole('link', { name: 'Ask about your data' })).toHaveAttribute(
@@ -96,14 +114,37 @@ describe('the price list', () => {
     );
   });
 
-  it('marks the plan’s English words as English on a page in Armenian', () => {
+  it('words a known feature in the page’s language (PD-212)', () => {
     show([managed], 'hy');
-    expect(screen.getByText('Managed')).toHaveAttribute('lang', 'en');
-    expect(screen.getByText('seating')).toHaveAttribute('lang', 'en');
+    expect(screen.getByText('Նստատեղերի պլան')).not.toHaveAttribute('lang');
   });
 
-  it('keeps the page out of search results until the public site exists, with a title in the page’s language', () => {
-    expect(pricingMeta('en')).toContainEqual({ name: 'robots', content: 'noindex,follow' });
+  // The names the backend's plans use (`backend/src/seed-production.ts`), written out here so a
+  // name the client stops wording shows up as a failure, not as raw English on the price list.
+  it.each([
+    'seating',
+    'check-in',
+    'operations',
+    'vendor-briefs',
+    'thank-yous',
+    'custom-design',
+    'coordinator',
+  ])('words the backend’s feature %s rather than showing its key', (feature) => {
+    show([{ ...managed, entitlements: { ...managed.entitlements, features: [feature] } }], 'hy');
+    expect(screen.queryByText(feature)).toBeNull();
+  });
+
+  it('marks the plan’s English words as English on a page in Armenian', () => {
+    show(
+      [{ ...managed, entitlements: { ...managed.entitlements, features: ['live-stream'] } }],
+      'hy',
+    );
+    expect(screen.getByText('Managed')).toHaveAttribute('lang', 'en');
+    expect(screen.getByText('live-stream')).toHaveAttribute('lang', 'en');
+  });
+
+  it('lets search engines list the page, with a title in the page’s language (PD-204)', () => {
+    expect(pricingMeta('en').some((tag) => 'name' in tag && tag.name === 'robots')).toBe(false);
     expect(pricingMeta('hy')).toContainEqual({ title: 'Գներ · Aveline' });
   });
 

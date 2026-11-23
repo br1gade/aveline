@@ -214,9 +214,7 @@ describe('VenueList', () => {
     const church = card('Saint Hripsime Church');
     expect(church).toHaveTextContent('Ceremony');
     expect(church).toHaveTextContent('Mesrop Mashtots St, Vagharshapat');
-    expect(church).toHaveTextContent(
-      'Guests arrive at 14:30, Saturday, 12 June 2027 (Asia/Yerevan)',
-    );
+    expect(church).toHaveTextContent('Guests arrive at 14:30, Saturday, 12 June 2027 (Yerevan)');
   });
 
   it('gives directions only through a web link, in a new tab, as the guest page does', async () => {
@@ -408,6 +406,10 @@ describe('Correcting a venue', () => {
     const name = await screen.findByLabelText('Name in English');
     expect(name).toHaveValue('Saint Hripsime');
     expect(name).toHaveAttribute('lang', 'en');
+    // The language's name in the label is marked as such too (WCAG 3.1.2, design PD-215).
+    const marked = screen.getAllByText('English', { selector: 'label span' });
+    expect(marked).toHaveLength(2);
+    for (const span of marked) expect(span).toHaveAttribute('lang', 'en');
     await user.clear(name);
     await user.type(name, 'Saint Hripsime Church');
     await user.click(screen.getByRole('button', { name: 'Save' }));

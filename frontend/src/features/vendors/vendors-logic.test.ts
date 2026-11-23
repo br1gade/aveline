@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 
 import { ApiError, networkError, type FieldFeedback } from '@/api/errors';
 
-import { briefUrl, isSendableOrigin } from './brief-link';
+import { briefUrl } from './brief-link';
 import {
   bookingChanges,
   bookingEditValues,
@@ -326,21 +326,6 @@ describe('the brief link', () => {
   it('is built on this client’s own address, at the route the vendor opens', () => {
     const token = plantedToken();
     expect(briefUrl('https://app.example', token)).toBe(`https://app.example/briefs/${token}`);
-  });
-});
-
-describe('where a brief link may be sent from', () => {
-  it.each([
-    ['https://app.aveline.am', 'https://app.aveline.am/app/events/e1/vendors/b1', true],
-    ['http://localhost:5173', 'http://localhost:5173/app', true],
-    ['http://localhost:5173', 'https://app.aveline.am/app', false],
-    ['http://127.0.0.1:5173', 'https://app.aveline.am/app', false],
-    ['http://app.aveline.am', 'https://app.aveline.am/app', false],
-    ['http://staging.aveline.test', 'http://staging.aveline.test/app', true],
-    ['http://localhost:5173', 'http://staging.aveline.test/app', false],
-    ['https://localhost:5173', 'https://app.aveline.am/app', false],
-  ])('a link on %s, copied from %s: %s', (origin, page, isSendable) => {
-    expect(isSendableOrigin(origin, page)).toBe(isSendable);
   });
 });
 

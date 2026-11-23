@@ -1,5 +1,6 @@
 import type { ApiClient } from '@/api/client';
 import { isApiError } from '@/api/errors';
+import { fetchPaymentOptions, type PaymentOptions } from '@/api/payment-options';
 import { ownOrganization } from '@/features/account';
 import { listEvents, type EventSummary } from '@/features/events';
 
@@ -14,6 +15,8 @@ export interface PromoCodesData {
   events: EventSummary[] | null;
   /** Each event's zone, archived ones included, for the codes limited to them. */
   zones: ReadonlyMap<string, string>;
+  /** Whether payments are on; `null` if unread, when the pilot's line shows to be safe (PD-118). */
+  payment: PaymentOptions | null;
   /** The clock the codes' states are read at, so a render never reads it again. */
   now: number;
 }
@@ -42,16 +45,17 @@ async function unlessFailed<T>(read: Promise<T>): Promise<T | null> {
  * organization's alone. Archived events aren't offered, but their codes still show in their zone.
  */
 export async function loadPromoCodes(api: ApiClient): Promise<PromoCodesData> {
-  const [codes, current, archived, organization] = await Promise.all([
+  const [codes, current, archived, organization, payment] = await Promise.all([
     codesOrRefusal(api),
     unlessFailed(listEvents(api)),
     unlessFailed(listEvents(api, { isArchiveWanted: true })),
     unlessFailed(ownOrganization(api)),
+    unlessFailed(fetchPaymentOptions(api)),
   ]);
   const zones = new Map(
     [...(current ?? []), ...(archived ?? [])].map((event) => [event.id, event.timezone]),
   );
   const ownId = organization?.organizationId;
   const events = current?.filter((event) => event.organizationId === ownId) ?? null;
-  return { codes, events, zones, now: Date.now() };
+  return { codes, events, zones, payment, now: Date.now() };
 }

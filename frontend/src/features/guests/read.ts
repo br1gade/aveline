@@ -16,20 +16,27 @@ import {
   type ImportRecordWire,
   type ImportResult,
   type ImportResultWire,
+  type PersonalLink,
   type RowError,
   type RowErrorWire,
 } from './types';
 
 /**
  * Where guest data arrives. Every object is built by naming its fields, never by spreading the
- * response, so a guest's `token` (their personal link, a credential) and any field added later stop
- * here: they are never rendered, stored, logged or put in an address.
+ * response, so any field added later stops here. A guest's `token` (their personal link, a
+ * credential) goes only into `link`, for the host to copy: it is never rendered, stored, logged or
+ * put in an address (design PD-213).
  */
 
 /** `in`, not a null check: a missing key is "not yours to see"; `null` is "none stored". */
 function contactOf(guest: GuestWire): Contact {
   if (!('email' in guest)) return { isShown: false };
   return { isShown: true, email: guest.email ?? null, phone: guest.phone ?? null };
+}
+
+/** Sent with the contact details; missing is not this role's to see (docs/API.md §6). */
+function linkOf(guest: GuestWire): PersonalLink {
+  return guest.token ? { isShown: true, token: guest.token } : { isShown: false };
 }
 
 function answerOf(value: string): Answer {
@@ -91,6 +98,7 @@ function readGuest(guest: GuestWire): Guest {
     isCheckedIn: guest.isCheckedIn,
     arrivedAt: guest.arrivedAt ?? null,
     contact: contactOf(guest),
+    link: linkOf(guest),
   };
 }
 

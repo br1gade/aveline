@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 
-import { LANGUAGES, SOURCE_LANGUAGE, type Language } from '@/lib/i18n';
+import { OFFERED_LANGUAGES, SOURCE_LANGUAGE, type Language } from '@/lib/i18n';
 
 import { PublicFrame } from './public-frame';
 
@@ -24,10 +24,11 @@ function Message({ language }: { language: Language }) {
 
 /**
  * An address that opens no public event: unpublished, private, archived or never there. Nothing
- * says which language to use, so it says so in all four, English first, as the invitation does.
+ * says which language to use, so it says so in each offered language, English first, as the
+ * invitation does.
  */
 export function EventNotFound() {
-  const others = LANGUAGES.filter((language) => language !== SOURCE_LANGUAGE);
+  const others = OFFERED_LANGUAGES.filter((language) => language !== SOURCE_LANGUAGE);
   return (
     <PublicFrame>
       <div className="flex flex-col gap-8 py-10 text-center">

@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 
 import type { components } from '../../../src/api/schema';
 import { apiAs, must, type Api } from './api';
+import { arePaymentsOn } from './stack';
 
 /**
  * Data for one test, made through the API as a host would (setup proposal §12): never the seed,
@@ -202,12 +203,13 @@ export interface TicketedEvent extends TestEvent {
   /** A category of its own, so the listing can be read down to this event alone. */
   category: string;
   freeTypeId: string;
-  paidTypeId: string;
+  /** `null` where payments are off: the API takes no price above nothing then (F-09). */
+  paidTypeId: string | null;
 }
 
 /**
- * A public concert with a free and a paid ticket on sale, its announcement published
- * (docs/API.md §4, "Setting up ticket sales").
+ * A public concert with a free ticket on sale and, where payments are on, a paid one, its
+ * announcement published (docs/API.md §4, "Setting up ticket sales").
  */
 export async function ticketedEvent(
   host: Host,
@@ -231,7 +233,7 @@ export async function ticketedEvent(
       `add the ${name} ticket`,
     );
   const free = await typeFor('Free entry', '0');
-  const paid = await typeFor('General', '15000');
+  const paid = (await arePaymentsOn()) ? await typeFor('General', '15000') : null;
   const run = randomUUID().slice(0, 8);
   const listingSlug = `jazz-${run}`;
   const category = `e2e-${run}`;
@@ -253,7 +255,7 @@ export async function ticketedEvent(
     }),
     'publish the announcement',
   );
-  return { ...event, listingSlug, category, freeTypeId: free.id, paidTypeId: paid.id };
+  return { ...event, listingSlug, category, freeTypeId: free.id, paidTypeId: paid?.id ?? null };
 }
 
 /** One free ticket bought through the API: the buyer's order link and the ticket's door code. */

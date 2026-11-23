@@ -1,6 +1,6 @@
 # The client's production image (decision A7 stays open: this says nothing about where it runs).
-# Built from this folder: `docker build -t aveline-frontend .` Not built by anyone yet: see
-# docs/ARCHITECTURE.md §12.
+# Built from this folder: `docker build -t aveline-frontend .` The release workflow builds it as
+# `aveline-web` (`.github/workflows/release.yml`); first built on 15 November 2026.
 FROM node:24-slim AS build
 WORKDIR /app
 COPY package.json package-lock.json .npmrc ./

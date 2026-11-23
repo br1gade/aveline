@@ -69,6 +69,10 @@ function EventPage() {
   return <p>{`Event page ${useParams().eventId ?? ''}`}</p>;
 }
 
+/** The overview's list of languages, whose names are marked each in its own (design PD-215). */
+const languageList = (_: string, element: Element | null) =>
+  element?.tagName === 'DD' && element.textContent === 'English, Հայերեն (default)';
+
 function renderAt(path: string, pattern: string, Page: ComponentType) {
   const Stub = createRoutesStub(
     guardedRoutes([
@@ -119,12 +123,23 @@ const submitCreate = (user: ReturnType<typeof userEvent.setup>) =>
 describe('CreateEvent', () => {
   const at = () => renderAt('/app/events/new', '/app/events/new', CreateEvent);
 
-  it('starts in Yerevan, in Armenian, with no kind of event chosen', async () => {
+  it('starts in Yerevan, in the language the host reads the app in, with no kind chosen', async () => {
     at();
     expect(await screen.findByLabelText('Kind of event')).toHaveValue('');
     expect(screen.getByLabelText('Time zone')).toHaveValue('Asia/Yerevan');
-    expect(screen.getByRole('checkbox', { name: 'Հայերեն' })).toBeChecked();
-    expect(screen.getByRole('radio', { name: 'Հայերեն' })).toBeChecked();
+    expect(screen.getByRole('checkbox', { name: 'English' })).toBeChecked();
+    expect(screen.getByRole('radio', { name: 'English' })).toBeChecked();
+    expect(screen.getByRole('checkbox', { name: 'Հայերեն' })).not.toBeChecked();
+    expect(screen.queryByRole('checkbox', { name: 'Français' })).not.toBeInTheDocument();
+  });
+
+  it('names a city Aveline knows beside its zone, and marks each language name in its own language (audit 20 Nov, A2-14)', async () => {
+    at();
+    await screen.findByLabelText('Time zone');
+    expect(screen.getByRole('option', { name: 'Yerevan (Asia/Yerevan)' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Europe/London' })).toBeInTheDocument();
+    for (const name of screen.getAllByText('Հայերեն')) expect(name).toHaveAttribute('lang', 'hy');
+    for (const name of screen.getAllByText('Русский')) expect(name).toHaveAttribute('lang', 'ru');
   });
 
   it('says the title is what guests and ticket buyers see', async () => {
@@ -170,7 +185,7 @@ describe('CreateEvent', () => {
     const received = answer('post', '/events', () => HttpResponse.json(EVENT, { status: 201 }));
     const user = at();
     await fillNewEvent(user);
-    await user.click(screen.getByRole('checkbox', { name: 'English' }));
+    await user.click(screen.getByRole('checkbox', { name: 'Հայերեն' }));
     await submitCreate(user);
     expect(await screen.findByText('Event page e1')).toBeInTheDocument();
     expect(received).toEqual([
@@ -180,7 +195,7 @@ describe('CreateEvent', () => {
         startsAt: '2027-06-12T11:00:00.000Z',
         timezone: 'Asia/Yerevan',
         locales: ['hy', 'en'],
-        defaultLocale: 'hy',
+        defaultLocale: 'en',
       },
     ]);
   });
@@ -192,9 +207,9 @@ describe('CreateEvent', () => {
     fireEvent.change(screen.getByLabelText('End date'), { target: { value: '2027-06-12' } });
     fireEvent.change(screen.getByLabelText('End time'), { target: { value: '23:30' } });
     await user.type(screen.getByLabelText('First side'), 'Anna’s family');
-    // Only Armenian is ticked: there are no other languages to mention yet.
+    // Only English is ticked: there are no other languages to mention yet.
     expect(screen.queryByText(/after creating the event/)).not.toBeInTheDocument();
-    await user.click(screen.getByRole('checkbox', { name: 'English' }));
+    await user.click(screen.getByRole('checkbox', { name: 'Հայերեն' }));
     expect(screen.getByText(/after creating the event, under “Edit details”/)).toBeInTheDocument();
     expect(screen.queryByLabelText(/^Title in /)).not.toBeInTheDocument();
     await submitCreate(user);
@@ -230,10 +245,10 @@ describe('CreateEvent', () => {
 
   it('moves the default language when its own is unticked', async () => {
     const user = at();
-    await user.click(await screen.findByRole('checkbox', { name: 'English' }));
-    await user.click(screen.getByRole('checkbox', { name: 'Հայերեն' }));
-    expect(screen.getByRole('radio', { name: 'English' })).toBeChecked();
-    expect(screen.queryByRole('radio', { name: 'Հայերեն' })).not.toBeInTheDocument();
+    await user.click(await screen.findByRole('checkbox', { name: 'Հայերեն' }));
+    await user.click(screen.getByRole('checkbox', { name: 'English' }));
+    expect(screen.getByRole('radio', { name: 'Հայերեն' })).toBeChecked();
+    expect(screen.queryByRole('radio', { name: 'English' })).not.toBeInTheDocument();
   });
 
   it('puts a refused time zone under its field', async () => {
@@ -331,7 +346,7 @@ describe('EventOverview', () => {
     async (permission, isCorrectable, isPutAway) => {
       const event = { ...EVENT, attendanceMode: 'EVENT_WIDE' as const, attendanceRevision: 1 };
       overview({ event }, ['event:read', permission]);
-      expect(await screen.findByText('English, Հայերեն (default)')).toBeInTheDocument();
+      expect(await screen.findByText(languageList)).toBeInTheDocument();
       const shown = (query: HTMLElement | null) => query !== null;
       expect(shown(screen.queryByRole('link', { name: 'Edit details' }))).toBe(isCorrectable);
       expect(shown(screen.queryByRole('link', { name: 'Change' }))).toBe(isCorrectable);
@@ -346,9 +361,11 @@ describe('EventOverview', () => {
     ).toBeInTheDocument();
   });
 
-  it('lists the languages with the default marked, and the invitation', async () => {
+  it('lists the languages with the default marked, each name in its own language, and the invitation', async () => {
     overview();
-    expect(await screen.findByText('English, Հայերեն (default)')).toBeInTheDocument();
+    const languages = await screen.findByText(languageList);
+    expect(languages.querySelector('span[lang="hy"]')?.textContent).toBe('Հայերեն');
+    expect(languages.querySelector('span[lang="en"]')?.textContent).toBe('English');
     expect(screen.getByText('Draft: guests can’t open it yet')).toBeInTheDocument();
     expect(screen.getByText('anna-davit-3f8a1c20')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Edit details' })).toHaveAttribute(

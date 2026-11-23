@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
@@ -128,6 +131,9 @@ beforeEach(() => {
     http.get(`${API}/events/e1/ticket-types`, () => HttpResponse.json([TYPE, UNSOLD])),
     http.get(`${API}/events/e1/listing`, () => HttpResponse.json(LISTING)),
     http.get(`${API}/events/e1/media`, () => HttpResponse.json([])),
+    http.get(`${API}/payment-options`, () =>
+      HttpResponse.json({ isPaymentAvailable: true, providers: ['FAKE'] }),
+    ),
   );
 });
 afterEach(() => server.resetHandlers());
@@ -326,6 +332,70 @@ describe('a ticket type’s form (PD-85)', () => {
       minPerOrder: 1,
       maxPerOrder: 10,
       salesEndAt: '2027-10-01T20:00:00.000Z',
+    });
+  });
+
+  describe('while payments are off (audit F-09)', () => {
+    beforeEach(() => {
+      server.use(
+        http.get(`${API}/payment-options`, () =>
+          HttpResponse.json({ isPaymentAvailable: false, providers: [] }),
+        ),
+      );
+    });
+
+    it('starts a new type free, and keeps a price from being sent', async () => {
+      const { user } = renderAt('/app/events/e1/tickets/types/new');
+      const price = await screen.findByLabelText('Price (AMD)');
+      expect(price).toHaveValue('0');
+      expect(screen.getByText(/every ticket is free/u)).toBeInTheDocument();
+      await user.clear(price);
+      await user.type(price, '15000');
+      await user.click(screen.getByRole('button', { name: 'Add the ticket type' }));
+      expect(await screen.findByText(/Set the price to 0/u)).toBeInTheDocument();
+      expect(sent).toHaveLength(0);
+    });
+
+    it('words the API’s refusal of a price on the price itself', async () => {
+      server.use(
+        http.patch(`${API}/events/e1/ticket-types/general`, () =>
+          HttpResponse.json(
+            {
+              statusCode: 400,
+              code: 'PAID_TICKETS_DISABLED',
+              message: ['priceMinor: tickets must be free while payments are off'],
+            },
+            { status: 400 },
+          ),
+        ),
+      );
+      const { user } = renderAt('/app/events/e1/tickets/types/general');
+      const names = await screen.findByRole('group', { name: 'Name' });
+      await user.type(within(names).getByLabelText('English · default language'), ' seat');
+      await user.click(screen.getByRole('button', { name: /Save/u }));
+      expect(await screen.findByText(/Set the price to 0/u)).toBeInTheDocument();
+    });
+
+    it('marks a type priced before as one nobody can buy, and a free one not', async () => {
+      server.use(
+        http.get(`${API}/events/e1/ticket-types`, () =>
+          HttpResponse.json([TYPE, { ...UNSOLD, priceMinor: '0' }]),
+        ),
+      );
+      renderAt('/app/events/e1/tickets');
+      const paid = (await screen.findByRole('heading', { name: 'General' })).closest('li');
+      const free = screen.getByRole('heading', { name: 'VIP' }).closest('li');
+      expect(within(paid as HTMLElement).getByText(/Can’t be bought during/u)).toBeInTheDocument();
+      expect(within(free as HTMLElement).queryByText(/Can’t be bought during/u)).toBeNull();
+      expect(screen.getByText(/paid tickets can’t be bought/u)).toBeInTheDocument();
+    });
+
+    it('reads the backend’s own code for a price refused while payments are off', () => {
+      const codes = readFileSync(
+        join(import.meta.dirname, '../../../../backend/src/common/domain-http.exception.ts'),
+        'utf8',
+      );
+      expect(codes).toContain('PAID_TICKETS_DISABLED: {');
     });
   });
 

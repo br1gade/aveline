@@ -14,6 +14,8 @@ import { hasFreeSeat } from '../form-model';
 import type { Guest, Household, Release, Seat, Side } from '../types';
 import { AnswerChip } from './answer-chip';
 import type { DialogTarget } from './dialog-target';
+import type { OnCopyLink } from './use-copy-guest-link';
+import type { RowNote } from './use-list-dialogs';
 
 /** Each side as this event names it; `UNKNOWN` is shown as nothing. */
 export type SideNames = Readonly<Record<Side, string>>;
@@ -33,6 +35,10 @@ interface RowProps {
   formatDay: FormatDay;
   /** With `guest:write` (FR-6, PD-190): correcting, recording and removing are offered. */
   canChange: boolean;
+  /** `null` until the invitation is published (design PD-213). */
+  onCopyLink: OnCopyLink | null;
+  /** What copying this guest's link just did; `null` for every other row. */
+  copiedNote: string | null;
 }
 
 function notesOf(guest: Guest, t: TFunction<'guests'>): string[] {
@@ -135,10 +141,45 @@ function GuestRow(props: RowProps) {
         {props.canChange ? (
           <RowChanges {...props} onEdit={open('edit')} onRemove={open('remove')} />
         ) : (
-          <HistoryButton {...props} />
+          <>
+            <HistoryButton {...props} />
+            <CopyLinkButton {...props} />
+          </>
         )}
       </div>
     </li>
+  );
+}
+
+/**
+ * The guest's personal link, copied for a host to give by hand (design PD-206, PD-213): only where
+ * this role was sent it, the invitation is published, and the guest was not erased. Never shown.
+ */
+function CopyLinkButton({
+  guest,
+  household,
+  t,
+  onCopyLink,
+  copiedNote,
+}: Pick<RowProps, 'guest' | 'household' | 't' | 'onCopyLink' | 'copiedNote'>) {
+  if (!onCopyLink || !guest.link.isShown || guest.isErased) return null;
+  return (
+    <>
+      <Button
+        variant="ghost"
+        className={ROW_ACTION}
+        aria-label={t('actionFor', { action: t('row.copyLink'), name: guest.name })}
+        onClick={() => onCopyLink(guest, household.id)}
+      >
+        {t('row.copyLink')}
+      </Button>
+      {/* Seen beside the button; the list's status line says it to a screen reader. */}
+      {copiedNote ? (
+        <p aria-hidden="true" className="col-span-2 m-0 w-full text-sm">
+          {copiedNote}
+        </p>
+      ) : null}
+    </>
   );
 }
 
@@ -164,14 +205,18 @@ const MORE_PANEL =
   'col-span-2 mt-2 grid-cols-2 p-2 group-open:grid sm:absolute sm:top-full sm:right-0 sm:z-10 sm:mt-1 sm:w-max sm:group-open:flex sm:max-w-[20rem] sm:p-3 sm:shadow-sm';
 
 /**
- * Correcting and recording in the row; removing and the answer history, used less, under "More"
- * (design PD-199, audit F-14, F-18). An erased guest is only removed.
+ * Correcting and recording in the row; removing, the answer history and copying the personal link,
+ * used less, under "More" (design PD-199, PD-213, audit F-14, F-18). An erased guest is only
+ * removed.
  */
 function RowChanges({
   eventId,
   guest,
   t,
   onOpen,
+  onCopyLink,
+  copiedNote,
+  household,
   onEdit,
   onRemove,
 }: RowProps & {
@@ -206,6 +251,13 @@ function RowChanges({
           {t('row.remove')}
         </Button>
         <HistoryButton guest={guest} t={t} onOpen={onOpen} />
+        <CopyLinkButton
+          guest={guest}
+          household={household}
+          t={t}
+          onCopyLink={onCopyLink}
+          copiedNote={copiedNote}
+        />
       </MoreActions>
     </>
   );
@@ -254,6 +306,8 @@ interface HouseholdCardProps {
   onChoose: OnChoose;
   formatDay: FormatDay;
   canChange: boolean;
+  onCopyLink: OnCopyLink | null;
+  copied: RowNote | null;
 }
 
 /**
@@ -367,10 +421,32 @@ function HouseholdChanges({
   );
 }
 
+/** The household's name, its seats, and what happened to its invitation. */
+function HouseholdHeading({
+  titleId,
+  household,
+  delivery,
+  t,
+}: Pick<HouseholdCardProps, 'household' | 'delivery' | 't'> & { titleId: string }) {
+  return (
+    <div className="flex min-w-0 flex-col gap-0.5">
+      <h2 id={titleId} className="m-0 text-base font-medium break-words">
+        {household.name}
+      </h2>
+      <p className="text-muted-foreground m-0 text-sm">
+        {t('household.seats', { named: household.seatsNamed, count: household.seatsAllotted })}
+      </p>
+      {delivery ? <DeliveryLine text={delivery} label={t('household.invitation')} /> : null}
+    </div>
+  );
+}
+
 /**
  * A household and its guests (design PD-44), with its invitation's line and the box that chooses it
  * for sending (PD-48). Memoized, and drawn only when on screen (`content-visibility`), so a search
- * across two thousand guests, or a box ticked, redraws only what changed.
+ * across two thousand guests, or a box ticked, redraws only what changed. That also clips the card's
+ * painting to its box, and from `sm` a row's "More" opens below it, over the next card, so a card
+ * whose "More" is open is drawn whole (walk of 22 November: its actions couldn't be pressed).
  */
 export const HouseholdCard = memo(function HouseholdCard({
   eventId,
@@ -384,23 +460,17 @@ export const HouseholdCard = memo(function HouseholdCard({
   onChoose,
   formatDay,
   canChange,
+  onCopyLink,
+  copied,
 }: HouseholdCardProps) {
   const titleId = useId();
   return (
     <section
       aria-labelledby={titleId}
-      className="bg-card border-border flex flex-col gap-2 border px-5 py-4 [contain-intrinsic-size:auto_9rem] [content-visibility:auto]"
+      className="bg-card border-border flex flex-col gap-2 border px-5 py-4 [contain-intrinsic-size:auto_9rem] [content-visibility:auto] has-[details[open]]:[content-visibility:visible]"
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="flex min-w-0 flex-col gap-0.5">
-          <h2 id={titleId} className="m-0 text-base font-medium break-words">
-            {household.name}
-          </h2>
-          <p className="text-muted-foreground m-0 text-sm">
-            {t('household.seats', { named: household.seatsNamed, count: household.seatsAllotted })}
-          </p>
-          {delivery ? <DeliveryLine text={delivery} label={t('household.invitation')} /> : null}
-        </div>
+        <HouseholdHeading titleId={titleId} household={household} delivery={delivery} t={t} />
         <HouseholdActions
           eventId={eventId}
           household={household}
@@ -423,6 +493,8 @@ export const HouseholdCard = memo(function HouseholdCard({
             onOpen={onOpen}
             formatDay={formatDay}
             canChange={canChange}
+            onCopyLink={onCopyLink}
+            copiedNote={copied?.guestId === guest.id ? copied.message : null}
           />
         ))}
       </ul>

@@ -5,9 +5,38 @@ import { WRAPPING_BUTTON } from '@/ui/app-form';
 import { Button } from '@/ui/kit/button';
 import { useCan } from '@/features/permissions';
 
-import { offerFor } from '../plans';
+import { isFree, offerFor } from '../plans';
 import type { Entitlements, Plan, Subscription } from '../types';
 import { usePrice } from './shared';
+
+/**
+ * The features the backend's plans name, worded here until it sends plan copy per language
+ * (FR-110; design PD-212). A key not listed is shown as it came, marked English.
+ */
+const KNOWN_FEATURES = [
+  'seating',
+  'check-in',
+  'operations',
+  'vendor-briefs',
+  'thank-yous',
+  'custom-design',
+  'coordinator',
+] as const;
+
+type KnownFeature = (typeof KNOWN_FEATURES)[number];
+
+function isKnownFeature(feature: string): feature is KnownFeature {
+  return (KNOWN_FEATURES as readonly string[]).includes(feature);
+}
+
+function Feature({ feature }: { feature: string }) {
+  const { t } = useTranslation('billing');
+  return isKnownFeature(feature) ? (
+    <li>{t(`features.${feature}`)}</li>
+  ) : (
+    <li lang="en">{feature}</li>
+  );
+}
 
 function Limits({ entitlements }: { entitlements: Entitlements }) {
   const { t } = useTranslation('billing');
@@ -32,9 +61,7 @@ function Limits({ entitlements }: { entitlements: Entitlements }) {
           : t('limits.lifetime', { count: invitationLifetimeDays })}
       </li>
       {features.map((feature) => (
-        <li key={feature} lang="en">
-          {feature}
-        </li>
+        <Feature key={feature} feature={feature} />
       ))}
     </ul>
   );
@@ -83,7 +110,15 @@ interface PlanListProps {
   plans: readonly Plan[];
   current: Subscription | null;
   now: number;
+  /** While payments are off, a paid plan is shown with its price but not offered (C-47). */
+  isPaymentAvailable: boolean;
   onChoose: (plan: Plan, opener: MouseEvent<HTMLElement>) => void;
+}
+
+/** "After the free pilot": a paid plan nobody can buy while payments are off (design C-47). */
+export function AfterPilot() {
+  const { t } = useTranslation('billing');
+  return <p className="m-0 mt-auto font-medium">{t('plans.afterPilot')}</p>;
 }
 
 /**
@@ -91,7 +126,7 @@ interface PlanListProps {
  * one running now, as choosing it would start a new period, and a free one already scheduled for the
  * period's end (FR-135).
  */
-export function PlanList({ plans, current, now, onChoose }: PlanListProps) {
+export function PlanList({ plans, current, now, isPaymentAvailable, onChoose }: PlanListProps) {
   const { t } = useTranslation('billing');
   const canChoose = useCan('billing:write');
   return (
@@ -106,6 +141,7 @@ export function PlanList({ plans, current, now, onChoose }: PlanListProps) {
           if (offer !== 'choose') {
             return <p className="m-0 mt-auto font-medium">{t(`plans.${offer}`)}</p>;
           }
+          if (!isPaymentAvailable && !isFree(plan.priceMinor)) return <AfterPilot />;
           return canChoose ? (
             <Button
               variant="outline"

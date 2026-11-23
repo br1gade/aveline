@@ -50,7 +50,7 @@ function SavedSignature({
             id={acknowledgementId}
             load={(signal) => load(acknowledgementId, signal)}
             alt={t('signature.drawingAlt', { names })}
-            className="border-line h-auto max-h-40 w-full max-w-sm border bg-white object-contain"
+            className="border-line bg-porcelain h-auto max-h-40 w-full max-w-sm border object-contain"
             renderFailed={(retry) => (
               <span className="text-ink-muted flex flex-col items-start gap-1 text-sm">
                 {t('signature.drawingFailed')}

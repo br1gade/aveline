@@ -24,6 +24,7 @@ describe('redactUrl', () => {
     ['/api/v1/events/e1/tickets/SAMPLE-1/admit', '/api/v1/events/e1/tickets/[token]/admit'],
     ['/briefs/xyz', '/briefs/[token]'],
     ['/api/v1/devices/d1/heartbeat', '/api/v1/devices/[token]/heartbeat'],
+    ['/api/v1/email-unsubscribe/m1/s1g', '/api/v1/email-unsubscribe/[token]'],
     ['/api/v1/ticket-orders/o1/confirm', '/api/v1/ticket-orders/[token]/confirm'],
     ['/api/v1/payments/AVL-1/confirm', '/api/v1/payments/[order]/confirm'],
     ['/api/v1/organization/invites/ani%40x.am', '/api/v1/organization/invites/[email]'],

@@ -25,6 +25,7 @@ function guest(id: string, overrides: Partial<Guest> = {}): Guest {
     isCheckedIn: false,
     arrivedAt: null,
     contact: { isShown: false },
+    link: { isShown: false },
     ...overrides,
   };
 }

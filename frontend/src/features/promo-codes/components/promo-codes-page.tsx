@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 
+import { useZoneName } from '@/lib/i18n';
 import { browserSession } from '@/api/session';
 import { Permitted } from '@/features/permissions';
 import { formatMinor } from '@/lib/money';
@@ -51,6 +52,7 @@ function CodeFacts({
   now: number;
 }) {
   const { t, i18n } = useTranslation('promo-codes');
+  const zoneName = useZoneName();
   const zone = zoneFor(promo.eventId, zones);
   const moment = useMoment(zone);
   const lines = [
@@ -72,7 +74,7 @@ function CodeFacts({
       : '',
     promo.validFrom ? t('code.from', { when: moment(promo.validFrom) }) : '',
     promo.validUntil
-      ? t('code.until', { when: moment(promo.validUntil), timeZone: zone.replaceAll('_', ' ') })
+      ? t('code.until', { when: moment(promo.validUntil), timeZone: zoneName(zone) })
       : '',
   ].filter(Boolean);
   return (
@@ -235,7 +237,9 @@ export function PromoCodesPage({ data }: { data: PromoCodesData }) {
       </Link>
       <h1 className="m-0 font-serif text-[28px] leading-[34px] font-normal">{t('title')}</h1>
       <p className="m-0 max-w-[40rem]">{t('lead')}</p>
-      <p className="border-border m-0 max-w-[40rem] border-l-2 pl-3">{t('pilot')}</p>
+      {data.payment?.isPaymentAvailable ? null : (
+        <p className="border-border m-0 max-w-[40rem] border-l-2 pl-3">{t('pilot')}</p>
+      )}
       {data.events ? null : <p className="m-0">{t('eventsUnread')}</p>}
       <StatusLine statusRef={statusRef}>{status}</StatusLine>
       {again.refusal ? <PromoProblem refusal={again.refusal} /> : null}

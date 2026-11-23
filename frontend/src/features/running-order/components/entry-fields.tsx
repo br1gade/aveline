@@ -2,7 +2,7 @@ import { useId } from 'react';
 import { Controller, type UseFormReturn } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 
-import { useLanguageName } from '@/lib/i18n';
+import { useLanguageName, useZoneName } from '@/lib/i18n';
 import { ErrorLine, SelectField, TextInputField } from '@/ui/app-form';
 import { Checkbox } from '@/ui/kit/checkbox';
 import { Label } from '@/ui/kit/label';
@@ -91,6 +91,7 @@ interface EntryFieldsProps {
 /** The fields adding and correcting share (design PD-106). */
 export function EntryFields({ form, languages, venues, timeZone }: EntryFieldsProps) {
   const { t } = useTranslation('running-order');
+  const zoneName = useZoneName();
   const errorText = useErrorText();
   const { errors } = form.formState;
   return (
@@ -107,7 +108,7 @@ export function EntryFields({ form, languages, venues, timeZone }: EntryFieldsPr
         <TextInputField
           type="time"
           label={t('dialog.time')}
-          help={t('dialog.timeHelp', { timeZone: timeZone.replaceAll('_', ' ') })}
+          help={t('dialog.timeHelp', { timeZone: zoneName(timeZone) })}
           error={errorText(errors.time)}
           {...form.register('time')}
         />

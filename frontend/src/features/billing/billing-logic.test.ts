@@ -10,7 +10,7 @@ import { plantedToken } from '../../../test/tokens';
 
 import { choiceKind, isFree, offerFor, standing } from './plans';
 import { readChoice, readConfirmed, readInvoice, readSubscription } from './read';
-import { billingRefusalOf, PILOT_SENTENCE } from './refusals';
+import { billingRefusalOf } from './refusals';
 import { returnOutcome } from './return-outcome';
 import type { Invoice, Plan, Subscription } from './types';
 
@@ -330,16 +330,16 @@ describe('what the return says', () => {
 });
 
 describe('a refusal', () => {
-  it('tells the pilot from a role, though both are a plain 403', () => {
-    expect(billingRefusalOf(apiError(403, PILOT_SENTENCE, 'FORBIDDEN')).kind).toBe('pilot');
+  it('tells the pilot from a role by its code, whatever the words', () => {
+    expect(billingRefusalOf(apiError(403, 'any words', 'PAYMENTS_DISABLED')).kind).toBe('pilot');
     expect(billingRefusalOf(apiError(403, 'Forbidden resource', 'FORBIDDEN')).kind).toBe(
       'forbidden',
     );
   });
 
-  it('reads the pilot’s sentence from the backend’s own guard', () => {
-    const source = readFileSync(join(BACKEND, 'payments/pilot-payments.ts'), 'utf8');
-    expect(source).toContain(`'${PILOT_SENTENCE}'`);
+  it('reads the pilot’s code from the backend’s own list', () => {
+    const source = readFileSync(join(BACKEND, '../common/domain-http.exception.ts'), 'utf8');
+    expect(source).toContain('PAYMENTS_DISABLED: {');
   });
 
   it.each<[number, string, string | undefined, string]>([

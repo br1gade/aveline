@@ -16,7 +16,7 @@ import { isComing } from '../attendance';
 import type { CheckoutRefusal } from '../refusals';
 import { rosterFor } from '../roster';
 import { checkoutSchema } from '../schemas';
-import type { CheckoutValues, PaymentProvider, PromoQuote } from '../types';
+import type { CheckoutValues, PromoQuote } from '../types';
 import { AttendeeCard } from './attendee-card';
 import { BasketSummary } from './basket-summary';
 import { BuyerFields } from './buyer-fields';
@@ -140,16 +140,15 @@ function useCheckoutSelections(event: PublicEvent, basket: Basket, form: Form) {
 export interface CheckoutFormProps {
   event: PublicEvent;
   basket: Basket;
-  provider: PaymentProvider;
 }
 
 /** Checkout's one form (design PD-79): posted from JavaScript, never by the browser (PD-41). */
-export function CheckoutForm({ event, basket, provider }: CheckoutFormProps) {
+export function CheckoutForm({ event, basket }: CheckoutFormProps) {
   const rules = event.checkout;
   const form = useCheckoutForm(rules, basket);
   const [quote, setQuote] = useState<PromoQuote | null>(null);
   useLeaveGuard(form);
-  const checkout = useCheckout({ event, basket, provider });
+  const checkout = useCheckout({ event, basket });
   const { refusal } = checkout;
   const { draft, typeIds, selections, kept } = useCheckoutSelections(event, basket, form);
   const place = async (values: CheckoutValues) => {

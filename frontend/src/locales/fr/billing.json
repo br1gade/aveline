@@ -31,6 +31,7 @@
     "none": "Aucune formule n’est proposée pour le moment.",
     "current": "Votre formule actuelle",
     "choose": "Choisir cette formule",
+    "afterPilot": "Après le pilote gratuit",
     "pending": "Commence à la fin de votre période payée"
   },
   "price": {
@@ -147,5 +148,14 @@
     "lead": "Ce que coûte chaque formule Aveline et ce qu’elle comprend.",
     "start": "Créer un compte",
     "metaTitle": "Tarifs · Aveline"
+  },
+  "features": {
+    "seating": "Plan de table",
+    "check-in": "Accueil à l’entrée",
+    "operations": "Déroulé et organisation du jour",
+    "vendor-briefs": "Briefs pour les prestataires",
+    "thank-yous": "Messages de remerciement",
+    "custom-design": "Un design sur mesure",
+    "coordinator": "Un coordinateur"
   }
 }

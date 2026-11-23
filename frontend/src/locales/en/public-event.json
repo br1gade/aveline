@@ -12,6 +12,7 @@
     "fewLeft_one": "Only {{count}} left",
     "fewLeft_other": "Only {{count}} left",
     "free": "Free",
+    "paymentsOff": "Paid tickets can’t be bought yet: Aveline is running as a free pilot. Free tickets can still be had.",
     "unnamed": "Ticket",
     "quantity": "How many: {{name}}",
     "salesEnd": "On sale until {{date}}, {{time}}",

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { formValuesOf, languageOptions, NEW_EVENT_VALUES, toggleLanguage } from './form-model';
+import { formValuesOf, languageOptions, newEventValues, toggleLanguage } from './form-model';
 import { createPayload, updatePayload } from './payload';
 import type { EventFormValues } from './schemas';
 import type { EventDetail } from './types';
@@ -37,13 +37,18 @@ const filled: EventFormValues = {
 };
 
 describe('a new event', () => {
-  it('starts in Yerevan, in Armenian, with no type chosen', () => {
-    expect(NEW_EVENT_VALUES).toMatchObject({
+  it('starts in Yerevan, in the language the host reads the app in, with no type chosen', () => {
+    expect(newEventValues('en')).toMatchObject({
       type: '',
       timezone: 'Asia/Yerevan',
-      locales: ['hy'],
-      defaultLocale: 'hy',
+      locales: ['en'],
+      defaultLocale: 'en',
     });
+    expect(newEventValues('ru')).toMatchObject({ locales: ['ru'], defaultLocale: 'ru' });
+  });
+
+  it('starts in Armenian when the app’s language is not one an event is offered in', () => {
+    expect(newEventValues('fr')).toMatchObject({ locales: ['hy'], defaultLocale: 'hy' });
   });
 
   it('sends the time typed in the event’s zone as UTC', () => {
@@ -168,9 +173,9 @@ describe('updatePayload', () => {
 });
 
 describe('languages', () => {
-  it('offers Armenian, Russian, English and French, and keeps any other the event already has', () => {
-    expect(languageOptions()).toEqual(['hy', 'ru', 'en', 'fr']);
-    expect(languageOptions(['en', 'de'])).toEqual(['hy', 'ru', 'en', 'fr', 'de']);
+  it('offers Armenian, Russian and English, and keeps any other the event already has', () => {
+    expect(languageOptions()).toEqual(['hy', 'ru', 'en']);
+    expect(languageOptions(['en', 'fr'])).toEqual(['hy', 'ru', 'en', 'fr']);
   });
 
   it('keeps the ticked languages in the order they are offered', () => {

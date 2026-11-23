@@ -10,6 +10,9 @@ export interface CalendarEvent {
   venues: ReadonlyArray<Pick<Venue, 'name' | 'address'>>;
 }
 
+/** How long a calendar entry lasts when the host gave no end (PD-211). */
+const UNKNOWN_END = 'PT3H';
+
 /** RFC 5545 §3.1: a line is at most 75 octets; a continuation starts with one space. */
 const LINE_OCTETS = 75;
 
@@ -68,7 +71,7 @@ export function buildCalendarFile(event: CalendarEvent, now: Date): string {
     `UID:${event.slug}@aveline`,
     `DTSTAMP:${utc(now.toISOString())}`,
     `DTSTART:${utc(event.startsAt)}`,
-    ...(event.endsAt ? [`DTEND:${utc(event.endsAt)}`] : []),
+    event.endsAt ? `DTEND:${utc(event.endsAt)}` : `DURATION:${UNKNOWN_END}`,
     `SUMMARY:${text(event.title)}`,
     ...(first ? [`LOCATION:${text(place(first))}`] : []),
     ...(first ? [`DESCRIPTION:${text(event.venues.map(place).join('\n'))}`] : []),

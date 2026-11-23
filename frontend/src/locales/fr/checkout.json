@@ -11,7 +11,10 @@
     "reserved": "Elle attend votre banque. Terminez le paiement ou consultez la réponse de la banque avant de commander à nouveau.",
     "open": "Ouvrir votre commande",
     "again": "Commencer une nouvelle commande",
-    "checking": "Recherche d’une commande passée dans cet onglet…"
+    "checking": "Recherche d’une commande passée dans cet onglet…",
+    "tryAgain": "Réessayer",
+    "unreadableTitle": "Nous n’avons pas pu vérifier la commande passée dans cet onglet.",
+    "unreadable": "Elle est peut-être déjà payée. Vérifiez votre connexion et réessayez avant de commander, pour ne pas payer deux fois ; ne commencez une nouvelle commande que si vous êtes sûr qu’il n’y en a pas."
   },
   "basket": {
     "heading": "Billets",

@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useRevalidator } from 'react-router';
 
 import type { Household } from '../types';
@@ -13,6 +13,17 @@ export interface DialogHostActions {
   close: () => void;
   /** Radix's `onCloseAutoFocus`: back to the button that opened the dialog, or the status line. */
   restoreFocus: (event: Event) => void;
+}
+
+/** The row a line said without a write is about, such as a guest whose link was copied. */
+export interface SaidAbout {
+  householdId: string;
+  guestId: string;
+}
+
+/** That line, shown beside the row's button as well (design PD-213). */
+export interface RowNote extends SaidAbout {
+  message: string;
 }
 
 /** A write that went through, waiting for the reloaded list to reach the screen. */
@@ -35,6 +46,9 @@ export function useListDialogs(households: readonly Household[]) {
   const { revalidate } = useRevalidator();
   const [target, setTarget] = useState<DialogTarget | null>(null);
   const [done, setDone] = useState<Done | null>(null);
+  /** Something said without a write, such as a link copied: replaces whatever the line said. */
+  const [said, setSaid] = useState('');
+  const [saidAbout, setSaidAbout] = useState<SaidAbout | null>(null);
   const openerRef = useRef<HTMLElement | null>(null);
   const statusRef = useRef<HTMLParagraphElement>(null);
 
@@ -43,6 +57,8 @@ export function useListDialogs(households: readonly Household[]) {
   const open = useCallback((next: DialogTarget, opener: HTMLElement) => {
     openerRef.current = opener;
     setDone(null);
+    setSaid('');
+    setSaidAbout(null);
     setTarget(next);
   }, []);
   const close = useCallback(() => setTarget(null), []);
@@ -55,6 +71,11 @@ export function useListDialogs(households: readonly Household[]) {
     [revalidate, households],
   );
   const reload = useCallback(() => void revalidate(), [revalidate]);
+  const say = useCallback((message: string, about: SaidAbout | null = null) => {
+    setDone(null);
+    setSaid(message);
+    setSaidAbout(about);
+  }, []);
   // Radix puts the focus back on its own trigger, which these dialogs, opened from a row, lack.
   const restoreFocus = useCallback((event: Event) => {
     event.preventDefault();
@@ -64,11 +85,19 @@ export function useListDialogs(households: readonly Household[]) {
   }, []);
 
   const host: DialogHostActions = { saved, reload, close, restoreFocus };
+  // One object while it stands, so only the card it is about draws again (they are memoized).
+  const note = useMemo<RowNote | null>(
+    () => (!isDone && said && saidAbout ? { ...saidAbout, message: said } : null),
+    [isDone, said, saidAbout],
+  );
   return {
     target: isDone ? null : target,
     open,
     host,
-    status: isDone ? done.message : '',
+    status: isDone ? done.message : said,
+    /** The same line, for the row it is about, until a write or a dialog replaces it. */
+    note,
     statusRef,
+    say,
   };
 }

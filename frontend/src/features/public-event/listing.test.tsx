@@ -212,6 +212,12 @@ function renderPage(wire: object, options: { search?: string; language?: Languag
 }
 
 describe('the listing’s page', () => {
+  it('offers hy, ru and en in its language menu, not French (C-58)', async () => {
+    renderPage(pageWire());
+    expect(await screen.findByRole('link', { name: 'Русский', hidden: true })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Français', hidden: true })).toBeNull();
+  });
+
   it('shows each card with its picture, link and words, in the page’s language', async () => {
     renderPage(pageWire());
     expect(

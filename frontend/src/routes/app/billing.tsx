@@ -1,20 +1,14 @@
 import { appMeta, requireSignedIn } from '@/features/account';
 import { BillingPage, loadBilling } from '@/features/billing';
 import { EventUnavailable } from '@/features/events';
-import { readServerEnv } from '@/config/env.server';
 import { languageOfMatches } from '@/lib/i18n';
 
 import type { Route } from './+types/billing';
 
-/** The bank a paid plan is sent to, a server setting until the API says which are set up (FR-109). */
-export function loader() {
-  return { provider: readServerEnv().TICKET_PAYMENT_PROVIDER };
-}
-
-export async function clientLoader({ request, serverLoader }: Route.ClientLoaderArgs) {
+/** The plans, the organization's own, and whether a paid plan can be bought now (FR-109). */
+export async function clientLoader({ request }: Route.ClientLoaderArgs) {
   const { api } = await requireSignedIn(request);
-  const [{ provider }, data] = await Promise.all([serverLoader(), loadBilling(api)]);
-  return { provider, data };
+  return { data: await loadBilling(api) };
 }
 clientLoader.hydrate = true as const;
 
@@ -28,7 +22,7 @@ export function meta({ matches }: Route.MetaArgs) {
 }
 
 export default function Billing({ loaderData }: Route.ComponentProps) {
-  return <BillingPage data={loaderData.data} provider={loaderData.provider} />;
+  return <BillingPage data={loaderData.data} />;
 }
 
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {

@@ -1,4 +1,5 @@
 import { isApiError } from '@/api/errors';
+import { safeExternalUrl } from '@/lib/links';
 
 import type {
   Brief,
@@ -118,23 +119,14 @@ function isKnownSection(section: string): section is BriefSection {
   return Object.hasOwn(SECTION_READERS, section);
 }
 
-/** Only an http or https link opens from the page; the backend checks this on writing, too. */
-function safeMapUrl(url: string | null): string | null {
-  if (!url) return null;
-  try {
-    return ['http:', 'https:'].includes(new URL(url).protocol) ? url : null;
-  } catch {
-    return null;
-  }
-}
-
 function venueOf(venue: BriefVenueWire): BriefVenue {
   return {
     role: venue.role,
     name: venue.name,
     address: venue.address,
     arriveAt: venue.arriveAt,
-    mapUrl: safeMapUrl(venue.mapUrl),
+    // Only an http or https link opens from the page; the backend checks this on writing, too.
+    mapUrl: safeExternalUrl(venue.mapUrl) ?? null,
   };
 }
 

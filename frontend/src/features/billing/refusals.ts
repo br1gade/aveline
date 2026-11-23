@@ -2,13 +2,6 @@ import { isApiError, type ApiError } from '@/api/errors';
 import { PAYMENT_DISAGREEMENT } from '@/api/payment-disagreement';
 import { isOrganizationRefusal } from '@/api/session';
 
-/**
- * The free pilot's refusal, which is a plain 403 like a role's, so told apart by its exact words
- * (`payments/pilot-payments.ts`; design PD-127, FR-109). **A temporary stand-in:** a reworded
- * sentence reads as a role's refusal until the test that reads the source fails.
- */
-export const PILOT_SENTENCE = 'Payments are disabled for the free pilot';
-
 type WordedKind =
   | 'pilot'
   | 'forbidden'
@@ -54,13 +47,13 @@ const STALE: ReadonlySet<WordedKind> = new Set([
 ]);
 
 /** Whatever a status or a code decides, before the sentences are read. */
-function bySignal({ status, messages, requestId, code }: ApiError): BillingRefusal | null {
+function bySignal({ status, requestId, code }: ApiError): BillingRefusal | null {
   if (status === 0 || status >= 500) return { kind: 'noAnswer', requestId };
   if (isOrganizationRefusal(code)) return { kind: 'chooseOrganization' };
   if (code === 'ORGANIZATION_ACCESS_DENIED') return { kind: 'noOrganization' };
   if (status === 429) return { kind: 'rateLimited' };
-  if (status !== 403) return null;
-  return { kind: messages.includes(PILOT_SENTENCE) ? 'pilot' : 'forbidden' };
+  if (code === 'PAYMENTS_DISABLED') return { kind: 'pilot' };
+  return status === 403 ? { kind: 'forbidden' } : null;
 }
 
 /** Billing is the organization's owner's (`billing:*`), and a refusal is worded (FR-6). */

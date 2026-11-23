@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Link, useLocation, useNavigate, useNavigation } from 'react-router';
 
 import { browserSession } from '@/api/session';
-import { LANGUAGES, type Language } from '@/lib/i18n';
+import { OFFERED_LANGUAGES, type Language } from '@/lib/i18n';
 import { APP_PATHS, ROUTE_PATHS } from '@/route-paths';
 import { cx, Icon, LanguageSwitcher } from '@/ui';
 import { LEAVE_UNASKED, MoreActions } from '@/ui/app-form';
@@ -134,7 +134,7 @@ function AccountControls({ organization }: Pick<AppShellProps, 'organization'>) 
       <div className="flex flex-wrap items-center gap-2">
         <LanguageSwitcher
           current={i18n.language}
-          available={LANGUAGES}
+          available={OFFERED_LANGUAGES}
           hrefFor={hrefFor}
           isClientNavigation
           align="end"

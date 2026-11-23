@@ -1,6 +1,7 @@
 import { useId, type ComponentProps } from 'react';
 
 import { FieldDescription, FieldLegend, FieldSet } from '@/ui/kit/field';
+import { LanguageMarked } from '@/ui/language-marked';
 
 import { ErrorLine } from './error-line';
 import { TextInputField } from './text-input-field';
@@ -49,19 +50,24 @@ export function TranslationFields<Field extends string>({
       <FieldDescription id={`${id}-help`}>{help}</FieldDescription>
       {languages.map((language) => {
         const note = noteOf?.(language);
+        const name = languageName(language);
         return (
           <div key={language} className="flex flex-col gap-3">
             {fields.map((field) => (
               <TextInputField
                 key={field.key}
-                label={field.label(languageName(language))}
+                label={<LanguageMarked text={field.label(name)} name={name} lang={language} />}
                 lang={language}
                 autoComplete="off"
                 error={errorOf(language, field.key)}
                 {...inputProps(language, field.key)}
               />
             ))}
-            {note ? <p className="text-muted-foreground m-0 text-sm">{note}</p> : null}
+            {note ? (
+              <p className="text-muted-foreground m-0 text-sm">
+                <LanguageMarked text={note} name={name} lang={language} />
+              </p>
+            ) : null}
           </div>
         );
       })}

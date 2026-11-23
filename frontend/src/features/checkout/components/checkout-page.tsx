@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { generatePath, Link } from 'react-router';
 
@@ -6,19 +7,26 @@ import { PublicFrame, type Basket, type PublicEvent } from '@/features/public-ev
 import { ROUTE_PATHS } from '@/route-paths';
 import { Notice } from '@/ui';
 
-import type { PaymentProvider } from '../types';
 import { CheckoutForm } from './checkout-form';
-import { HeldOrderNotice, useHeldOrderHere } from './held-order';
+import { HeldOrderNotice, useHeldOrderHere, type HeldHere } from './held-order';
 import { useCheckoutApi } from './use-checkout-api';
 
 export interface CheckoutPageProps {
   event: PublicEvent;
   basket: Basket;
   isSalesClosed: boolean;
-  provider: PaymentProvider;
 }
 
-function Body({ event, basket, isSalesClosed, provider }: CheckoutPageProps) {
+/** A paid ticket in the basket while the API says nothing can be paid for (audit F-09). */
+function isUnpayable(event: PublicEvent, basket: Basket): boolean {
+  if (event.checkout.payment.isPaymentAvailable) return false;
+  const paid = new Set(
+    event.ticketTypes.filter((type) => type.priceMinor !== '0').map((type) => type.id),
+  );
+  return basket.some((line) => paid.has(line.ticketTypeId));
+}
+
+function Body({ event, basket, isSalesClosed }: CheckoutPageProps) {
   const { t } = useTranslation('checkout');
   const back = `${generatePath(ROUTE_PATHS.publicEvent, { slug: event.slug })}?locale=${event.locale}`;
   if (isSalesClosed) return <Notice>{t('closed')}</Notice>;
@@ -38,17 +46,24 @@ function Body({ event, basket, isSalesClosed, provider }: CheckoutPageProps) {
       </Notice>
     );
   }
-  return <FormUnlessHeld event={event} basket={basket} provider={provider} />;
+  // Said before the form, which stays: a promo code that makes the order free still goes through.
+  return (
+    <>
+      {isUnpayable(event, basket) ? <Notice>{t('refusals.paymentsOff')}</Notice> : null}
+      <FormUnlessHeld event={event} basket={basket} />
+    </>
+  );
 }
 
 /**
  * The form, unless this tab already holds a live order for the event: Back from the order or the
  * bank shows that order, and placing another is a choice (design PD-152, audit F-07).
  */
-function FormUnlessHeld({ event, basket, provider }: Omit<CheckoutPageProps, 'isSalesClosed'>) {
+function FormUnlessHeld({ event, basket }: Omit<CheckoutPageProps, 'isSalesClosed'>) {
   const { t } = useTranslation('checkout');
   const api = useCheckoutApi(event.locale);
-  const { held, startAgain } = useHeldOrderHere(event.slug, api);
+  const { held, isChecking, startAgain, tryAgain } = useHeldOrderHere(event.slug, api);
+  const formRef = useFocusOnFound(held);
   if (held === 'checking') {
     return (
       <p role="status" className="m-0">
@@ -57,9 +72,35 @@ function FormUnlessHeld({ event, basket, provider }: Omit<CheckoutPageProps, 'is
     );
   }
   if (held !== 'none') {
-    return <HeldOrderNotice held={held} locale={event.locale} onStartAgain={startAgain} />;
+    return (
+      <HeldOrderNotice
+        held={held}
+        isChecking={isChecking}
+        locale={event.locale}
+        onStartAgain={startAgain}
+        onTryAgain={tryAgain}
+      />
+    );
   }
-  return <CheckoutForm event={event} basket={basket} provider={provider} />;
+  return (
+    <div ref={formRef} tabIndex={-1} className="outline-none">
+      <CheckoutForm event={event} basket={basket} />
+    </div>
+  );
+}
+
+/**
+ * An order that couldn't be read, read again and found gone, gives way to the form: the focus goes
+ * to it, as the "Try again" it was on is gone (WCAG 2.4.3, design PD-214).
+ */
+function useFocusOnFound(held: HeldHere) {
+  const formRef = useRef<HTMLDivElement>(null);
+  const wasUnreadable = useRef(false);
+  useEffect(() => {
+    if (held === 'none' && wasUnreadable.current) formRef.current?.focus();
+    if (held !== 'checking') wasUnreadable.current = held === 'unreadable';
+  }, [held]);
+  return formRef;
 }
 
 /**

@@ -39,9 +39,14 @@ describe('the listing’s route', () => {
   });
 
   it('remembers a language chosen with ?lang=', async () => {
-    const { asked, headers } = await load('/events?lang=fr');
-    expect(asked.get('locale')).toBe('fr');
-    expect(headers.get('Set-Cookie')).toContain('aveline-lang=fr');
+    const { asked, headers } = await load('/events?lang=ru');
+    expect(asked.get('locale')).toBe('ru');
+    expect(headers.get('Set-Cookie')).toContain('aveline-lang=ru');
+  });
+
+  it('takes no French while the pilot offers none (14 November 2026)', async () => {
+    const { headers } = await load('/events?lang=fr');
+    expect(headers.get('Set-Cookie')).toBeNull();
   });
 
   it('asks a browser’s cache to tell the languages apart, as the address doesn’t', async () => {

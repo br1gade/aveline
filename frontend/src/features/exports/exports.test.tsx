@@ -220,14 +220,14 @@ describe('making an export (PD-74)', () => {
     const { user } = renderPage();
     await user.click(await screen.findByRole('radio', { name: 'Seating chart' }));
     await user.click(screen.getByRole('radio', { name: 'Spreadsheet (XLSX)' }));
-    await user.selectOptions(screen.getByLabelText('Language of the file'), 'fr');
+    await user.selectOptions(screen.getByLabelText('Language of the file'), 'ru');
     expect(screen.queryByRole('radio', { name: 'Leave them out' })).not.toBeInTheDocument();
     await user.click(await makeButton());
     expect(posted).toEqual([
       expect.objectContaining({
         kind: 'SEATING_CHART',
         format: 'XLSX',
-        locale: 'fr',
+        locale: 'ru',
         includesContacts: false,
       }),
     ]);

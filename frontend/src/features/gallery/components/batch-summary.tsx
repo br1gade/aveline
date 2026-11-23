@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 
-import { Button, Notice } from '@/ui';
+import { Button, Icon, Notice } from '@/ui';
 
 import { PHOTOS_PER_GUEST } from '../rules';
 import type { BatchStop, FileOutcome } from '../upload-batch';
@@ -61,9 +61,14 @@ export function BatchSummary({ batch, onSendRest }: { batch: SentBatch; onSendRe
         {result.outcomes.map((outcome, index) => (
           <li key={`${index}-${files[index]?.name ?? ''}`} className="flex flex-wrap gap-x-2">
             <bdi className="break-all">{files[index]?.name}</bdi>
-            <span className={outcome.kind === 'refused' ? 'text-error' : 'text-ink-muted'}>
-              {t(outcomeKey(outcome))}
-            </span>
+            {outcome.kind === 'refused' ? (
+              <span className="text-error inline-flex items-start gap-1">
+                <Icon name="circle-alert" size={16} className="mt-0.5 shrink-0" />
+                {t(outcomeKey(outcome))}
+              </span>
+            ) : (
+              <span className="text-ink-muted">{t(outcomeKey(outcome))}</span>
+            )}
           </li>
         ))}
       </ul>

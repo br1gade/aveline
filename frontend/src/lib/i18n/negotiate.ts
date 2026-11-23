@@ -1,4 +1,4 @@
-import { isLanguage, SOURCE_LANGUAGE, type Language } from './i18n';
+import { isOfferedLanguage, SOURCE_LANGUAGE, type Language } from './i18n';
 import { LANGUAGE_COOKIE } from './language-cookie';
 
 /**
@@ -7,7 +7,8 @@ import { LANGUAGE_COOKIE } from './language-cookie';
  * `locale` their response names.
  *
  * In order: `?lang=` (the switcher's links), the cookie a previous `?lang=` set, the browser's
- * `Accept-Language`, then English. The cookie only remembers a choice; it unlocks nothing.
+ * `Accept-Language`, then English. The cookie only remembers a choice; it unlocks nothing. Only
+ * an offered language is taken: a French choice or cookie from before the pilot falls through.
  */
 const ONE_YEAR_IN_SECONDS = 365 * 24 * 60 * 60;
 
@@ -20,11 +21,11 @@ export interface NegotiatedLanguage {
 export function negotiateLanguage(request: Request): NegotiatedLanguage {
   const url = new URL(request.url);
   const chosen = url.searchParams.get('lang');
-  if (isLanguage(chosen)) {
+  if (isOfferedLanguage(chosen)) {
     return { language: chosen, setCookie: languageCookie(chosen, url.protocol === 'https:') };
   }
   const remembered = cookieValue(request.headers.get('cookie'), LANGUAGE_COOKIE);
-  if (isLanguage(remembered)) {
+  if (isOfferedLanguage(remembered)) {
     return { language: remembered };
   }
   return { language: fromAcceptLanguage(request.headers.get('accept-language')) };
@@ -47,7 +48,7 @@ function cookieValue(header: string | null, name: string): string | undefined {
   return undefined;
 }
 
-/** The first of hy, ru, en and fr the browser prefers, by quality; a region tag counts as its language. */
+/** The first of hy, ru and en the browser prefers, by quality; a region tag counts as its language. */
 export function fromAcceptLanguage(header: string | null): Language {
   const ranked = (header ?? '')
     .split(',')
@@ -62,5 +63,5 @@ export function fromAcceptLanguage(header: string | null): Language {
     })
     .filter((entry) => entry.quality > 0)
     .sort((a, b) => b.quality - a.quality || a.position - b.position);
-  return ranked.map((entry) => entry.language).find(isLanguage) ?? SOURCE_LANGUAGE;
+  return ranked.map((entry) => entry.language).find(isOfferedLanguage) ?? SOURCE_LANGUAGE;
 }

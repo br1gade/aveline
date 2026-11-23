@@ -25,7 +25,11 @@ import { plantedToken } from '../../../test/tokens';
 import { BillingPage } from './components/billing-page';
 import { BillingReturnFailed, BillingReturnPage } from './components/billing-return-page';
 import { confirmNewestInvoice, loadBilling, type BillingData } from './load';
-import { PILOT_SENTENCE } from './refusals';
+
+const PILOT = 'Payments are disabled for the free pilot';
+// A real bank, so a hard-coded FAKE anywhere in the page would show (FR-109).
+const PAYMENTS_ON = { isPaymentAvailable: true, providers: ['AMERIABANK'] };
+const PAYMENTS_OFF = { isPaymentAvailable: false, providers: [] };
 
 vi.mock('@/lib/links/bank', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
@@ -115,8 +119,13 @@ afterEach(() => {
 });
 afterAll(() => server.close());
 
-function answerReads(subscription: typeof held | null = held, invoices: unknown[] = [invoice]) {
+function answerReads(
+  subscription: typeof held | null = held,
+  invoices: unknown[] = [invoice],
+  payment: unknown = PAYMENTS_ON,
+) {
   server.use(
+    http.get(`${API}/payment-options`, () => HttpResponse.json(payment as never)),
     http.get(`${API}/plans`, () => HttpResponse.json([free, paid])),
     http.get(`${API}/subscription`, () => HttpResponse.json({ subscription })),
     http.get(`${API}/invoices`, () => HttpResponse.json(invoices as never)),
@@ -145,7 +154,7 @@ async function loaded(): Promise<BillingData> {
 
 /** The page's reads go through a loader, so what a change reloads reaches the screen. */
 function LoadedPage() {
-  return <BillingPage data={useLoaderData<typeof loaded>()} provider="FAKE" />;
+  return <BillingPage data={useLoaderData<typeof loaded>()} />;
 }
 
 async function openPage(language: Language = 'en', permissions: Granted = null) {
@@ -242,6 +251,7 @@ describe('the billing page', () => {
   it('words a role’s 403 and still shows the plans', async () => {
     server.use(
       http.get(`${API}/plans`, () => HttpResponse.json([paid])),
+      http.get(`${API}/payment-options`, () => HttpResponse.json(PAYMENTS_ON as never)),
       http.get(`${API}/subscription`, () => refusal(403, 'Forbidden resource')),
       http.get(`${API}/invoices`, () => refusal(403, 'Forbidden resource')),
     );
@@ -254,6 +264,7 @@ describe('the billing page', () => {
     const choose = () => refusal(409, 'organizationId: select', 'ORGANIZATION_SELECTION_REQUIRED');
     server.use(
       http.get(`${API}/plans`, () => HttpResponse.json([paid])),
+      http.get(`${API}/payment-options`, () => HttpResponse.json(PAYMENTS_ON as never)),
       http.get(`${API}/subscription`, choose),
       http.get(`${API}/invoices`, choose),
     );
@@ -284,7 +295,7 @@ describe('the billing page', () => {
     const dialog = await screen.findByRole('alertdialog');
     await userEvent.click(within(dialog).getByRole('button', { name: 'Go to the bank' }));
     await vi.waitFor(() => expect(leaveForBank).toHaveBeenCalledWith('https://bank.example/pay'));
-    expect(body).toEqual({ planKey: 'managed-monthly', provider: 'FAKE' });
+    expect(body).toEqual({ planKey: 'managed-monthly', provider: 'AMERIABANK' });
   });
 
   it('follows no bank address that isn’t one', async () => {
@@ -356,9 +367,22 @@ describe('the billing page', () => {
     expect(await screen.findByText('The plan carries on.')).toBeInTheDocument();
   });
 
+  it('says first that paid plans wait for the pilot’s end, and offers only the free one', async () => {
+    answerReads(null, [], PAYMENTS_OFF);
+    await openPage();
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      'Paid plans aren’t available during the free pilot.',
+    );
+    const plans = screen.getByRole('region', { name: 'Plans' });
+    expect(within(plans).getByText('After the free pilot')).toBeInTheDocument();
+    expect(within(plans).getAllByRole('button', { name: 'Choose this plan' })).toHaveLength(1);
+    // Before any press, nothing was refused, so it doesn't say nothing was charged.
+    expect(screen.queryByText(/Nothing was charged/u)).not.toBeInTheDocument();
+  });
+
   it('says the pilot is why, as unavailable and not a failure, and what stays usable', async () => {
     answerReads(null, []);
-    server.use(http.post(`${API}/subscription`, () => refusal(403, PILOT_SENTENCE)));
+    server.use(http.post(`${API}/subscription`, () => refusal(403, PILOT, 'PAYMENTS_DISABLED')));
     await openPage();
     const plans = screen.getByRole('region', { name: 'Plans' });
     await userEvent.click(within(plans).getAllByRole('button', { name: 'Choose this plan' })[1]!);
@@ -394,7 +418,7 @@ describe('the billing page', () => {
     const dialog = await screen.findByRole('alertdialog');
     await userEvent.click(within(dialog).getByRole('button', { name: 'Go to the bank' }));
     await vi.waitFor(() => expect(leaveForBank).toHaveBeenCalledWith('https://bank.example/again'));
-    expect(body).toEqual({ planKey: 'managed-monthly', provider: 'FAKE' });
+    expect(body).toEqual({ planKey: 'managed-monthly', provider: 'AMERIABANK' });
   });
 
   it('offers no payment on an invoice with no plan to ask for', async () => {
@@ -418,7 +442,6 @@ describe('the billing page', () => {
   it('marks what the backend holds only in English', async () => {
     answerReads();
     await openPage('hy');
-    expect(screen.getAllByText('seating')[0]).toHaveAttribute('lang', 'en');
     expect(screen.getByText('Managed (monthly)')).toHaveAttribute('lang', 'en');
   });
 });
@@ -590,7 +613,7 @@ describe('the bank’s return', () => {
     answerConfirm(() =>
       HttpResponse.json({ ...invoice, payment: { orderNumber, status: 'FAILED' } }),
     );
-    server.use(http.post(`${API}/subscription`, () => refusal(403, PILOT_SENTENCE)));
+    server.use(http.post(`${API}/subscription`, () => refusal(403, PILOT, 'PAYMENTS_DISABLED')));
     await openReturn();
     await userEvent.click(screen.getByRole('button', { name: 'Pay again' }));
     expect(await screen.findByText(/aren’t available during the free pilot/)).toBeInTheDocument();

@@ -49,12 +49,22 @@ export function useDialogAction<Refusal extends DialogRefusal>(
       isDone.current = true;
       onClose();
     } catch (error) {
-      // Free first: an error that isn't the API's is thrown on as a bug, and must not leave the
-      // dialog stuck busy, unable to be closed.
-      setIsBusy(false);
+      await settle(error);
+    }
+  };
+  /**
+   * A refusal stays on the dialog. A stale one reads the page again behind it, and the press stays
+   * busy until it has, so pressing again goes with what was just read, not what was refused (audit
+   * 20 Nov, A2-07). An error that isn't the API's is thrown on as a bug, and must not leave the
+   * dialog stuck busy, unable to be closed.
+   */
+  const settle = async (error: unknown) => {
+    try {
       const found = refusalOf(error);
       setRefusal(found);
-      if (found.isStale) page.reload();
+      if (found.isStale) await page.reloadAndWait();
+    } finally {
+      setIsBusy(false);
     }
   };
   return { isBusy, refusal, run, onCloseAutoFocus, onOpenChange };

@@ -52,7 +52,11 @@ describe('checkout refusals, told apart until FR-63 gives codes', () => {
     [refused(400, 'At most 4 ticket(s) per order'), 'orderLimits'],
     [refused(404, 'No published event at "autumn-jazz-night"'), 'notFound'],
     [refused(404, 'One or more ticket types do not belong to this event'), 'notFound'],
-    [refused(403, 'Payments are disabled for the free pilot'), 'paymentsOff'],
+    [
+      refused(403, 'Payments are disabled for the free pilot', { code: 'PAYMENTS_DISABLED' }),
+      'paymentsOff',
+    ],
+    [refused(403, 'Forbidden'), 'other'],
     [refused(429, 'Too Many Requests'), 'rateLimited'],
     [networkError('r-0'), 'noAnswer'],
     [refused(502, 'Bad Gateway'), 'noAnswer'],
@@ -147,6 +151,7 @@ describe('a seat or zone refused at checkout (PD-185)', () => {
     ['TICKET_LAYOUT_CHANGED', 'layoutChanged'],
     ['TICKET_SELECTION_UNAVAILABLE', 'selectionUnavailable'],
     ['TICKET_BUYER_LIMIT_REACHED', 'buyerLimit'],
+    ['PAYMENTS_DISABLED', 'paymentsOff'],
   ])('reads the backend’s %s as %s, by its code', (code, kind) => {
     expect(codes).toContain(`${code}: {`);
     expect(checkoutRefusal(refused(409, 'any words', { code }))).toEqual({ kind });

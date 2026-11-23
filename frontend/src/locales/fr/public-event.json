@@ -13,6 +13,7 @@
     "fewLeft_many": "Plus que {{count}}",
     "fewLeft_other": "Plus que {{count}}",
     "free": "Gratuit",
+    "paymentsOff": "Les billets payants ne sont pas encore en vente : Aveline fonctionne en pilote gratuit. Les billets gratuits restent disponibles.",
     "unnamed": "Billet",
     "quantity": "Combien : {{name}}",
     "salesEnd": "En vente jusqu’au {{date}}, {{time}}",

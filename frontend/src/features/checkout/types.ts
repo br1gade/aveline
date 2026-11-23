@@ -1,3 +1,5 @@
+import type { PaymentProvider } from '@/api/payment-options';
+
 /**
  * Checkout's form values and what it sends and receives (docs/API.md §5, "Buying tickets"),
  * checked against the schema at each call (FR-1). What is sent is built in payload.ts; how the form
@@ -71,11 +73,10 @@ export interface OrderBody {
   locale: string;
   attendanceRevision: number;
   attendees: AttendeeBody[];
-  provider: PaymentProvider;
+  /** The bank a paid order goes to; none is named while payments are off (docs/API.md §5). */
+  provider?: PaymentProvider;
   promoCode?: string;
 }
-
-export type PaymentProvider = 'AMERIABANK' | 'INECOBANK' | 'IDBANK' | 'FAKE';
 
 /** The order as checkout's answer gives it: only what the next step needs. */
 export interface PlacedOrder {

@@ -7,6 +7,7 @@ import { I18nextProvider } from 'react-i18next';
 import { createRoutesStub, useLoaderData } from 'react-router';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { ApiError, networkError } from '@/api/errors';
 import { readBasket, type PublicEvent } from '@/features/public-event';
 import { fetchOrder, forgetOrder, heldOrder, holdOrder } from '@/features/ticket-order';
 import { createI18n } from '@/lib/i18n';
@@ -98,7 +99,6 @@ function renderCheckout(tickets = 'general.2') {
               event={event}
               basket={readBasket(param, event.ticketTypes)}
               isSalesClosed={false}
-              provider="FAKE"
             />
           </LeaveGuard>
         );
@@ -455,6 +455,66 @@ describe('an order this tab already holds for the event (PD-152, audit F-07)', (
     renderCheckout();
     expect(await screen.findByRole('region', { name: 'Your details' })).toBeInTheDocument();
   });
+
+  it.each([
+    ['no connection', networkError()],
+    ['too many requests', new ApiError({ status: 429, messages: [] })],
+    ['a server error', new ApiError({ status: 503, messages: [] })],
+    ['an unexpected failure', new TypeError('bad body')],
+  ])(
+    'keeps the form away when the order can’t be read: %s (design PD-214)',
+    async (_case, failure) => {
+      holdOrder({ accessToken: TOKEN, eventSlug: EVENT.slug });
+      vi.mocked(fetchOrder).mockRejectedValue(failure);
+      renderCheckout();
+      expect(
+        await screen.findByText('We couldn’t check the order made in this tab.'),
+      ).toBeInTheDocument();
+      expect(screen.queryByRole('region', { name: 'Your details' })).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Start a new order' })).toBeInTheDocument();
+    },
+  );
+
+  it('reads it again on asking, waiting with the notice in place, then says what it found', async () => {
+    holdOrder({ accessToken: TOKEN, eventSlug: EVENT.slug });
+    let answer = (_value: Awaited<ReturnType<typeof fetchOrder>>) => undefined as void;
+    vi.mocked(fetchOrder)
+      .mockRejectedValueOnce(networkError())
+      .mockReturnValueOnce(
+        new Promise((resolve) => {
+          answer = resolve;
+        }),
+      );
+    const { user } = renderCheckout();
+    await user.click(await screen.findByRole('button', { name: 'Try again' }));
+    const waiting = screen.getByRole('button', { name: 'Looking for an order made in this tab…' });
+    expect(waiting).toHaveAttribute('aria-disabled', 'true');
+    await user.click(waiting);
+    expect(fetchOrder).toHaveBeenCalledTimes(2);
+    expect(screen.queryByRole('region', { name: 'Your details' })).not.toBeInTheDocument();
+    answer({ order: { status: 'PAID' } } as unknown as Awaited<ReturnType<typeof fetchOrder>>);
+    expect(await screen.findByText(/Its tickets are on your order page/)).toBeInTheDocument();
+    // The button pressed is gone: the focus is on what the notice now says (WCAG 2.4.3).
+    expect(screen.getByText('You already have an order for this event.')).toHaveFocus();
+  });
+
+  it('shows the form, with the focus, when reading again finds no order', async () => {
+    holdOrder({ accessToken: TOKEN, eventSlug: EVENT.slug });
+    vi.mocked(fetchOrder)
+      .mockRejectedValueOnce(networkError())
+      .mockRejectedValueOnce(new ApiError({ status: 404, messages: [] }));
+    const { user } = renderCheckout();
+    await user.click(await screen.findByRole('button', { name: 'Try again' }));
+    const details = await screen.findByRole('region', { name: 'Your details' });
+    expect(document.activeElement).toBe(details.closest('[tabindex="-1"]'));
+  });
+
+  it('shows the form when the order is gone (404): there is nothing to pay twice', async () => {
+    holdOrder({ accessToken: TOKEN, eventSlug: EVENT.slug });
+    vi.mocked(fetchOrder).mockRejectedValue(new ApiError({ status: 404, messages: [] }));
+    renderCheckout();
+    expect(await screen.findByRole('region', { name: 'Your details' })).toBeInTheDocument();
+  });
 });
 
 describe('before hydration', () => {
@@ -468,7 +528,6 @@ describe('before hydration', () => {
               event={EVENT}
               basket={readBasket('general.1', EVENT.ticketTypes)}
               isSalesClosed={false}
-              provider="FAKE"
             />
           </LeaveGuard>
         ),
@@ -631,8 +690,30 @@ describe('refusals and retries (PD-80)', () => {
     expect(within(await ticket(1, 1)).getByLabelText('First name')).toHaveValue('Anna');
   });
 
+  it('says before the form that paid tickets cannot be bought while payments are off', async () => {
+    const off = { isPaymentAvailable: false, providers: [] };
+    current.event = { ...EVENT, checkout: { ...EVENT.checkout, payment: off } };
+    renderCheckout('table.1');
+    expect(await screen.findByText(/Paid tickets can’t be bought yet/u)).toBeInTheDocument();
+    expect(await screen.findAllByLabelText('First name')).not.toHaveLength(0);
+  });
+
+  it('says nothing of the pilot for a free basket, and names no bank', async () => {
+    const off = { isPaymentAvailable: false, providers: [] };
+    current.event = { ...EVENT, checkout: { ...EVENT.checkout, payment: off } };
+    serveOrders(() => refusal(500, 'stop here'));
+    const { user } = renderCheckout('general.1');
+    await fillOne(user);
+    expect(screen.queryByText(/Paid tickets can’t be bought yet/u)).not.toBeInTheDocument();
+    await user.click(await submit());
+    await screen.findByRole('alert');
+    expect(posted[0]).not.toHaveProperty('provider');
+  });
+
   it('keeps everything typed when paid tickets cannot be bought during the pilot', async () => {
-    serveOrders(() => refusal(403, 'Payments are disabled for the free pilot'));
+    serveOrders(() =>
+      refusal(403, 'Payments are disabled for the free pilot', { code: 'PAYMENTS_DISABLED' }),
+    );
     const { user } = renderCheckout('general.1');
     await fillOne(user);
     await user.click(await submit());

@@ -8,17 +8,27 @@ import { readHouseholds, readImportHistory, readImportResult } from './read';
 import { guestWire, guestWithoutContact, householdWire } from './test-data';
 
 describe('readHouseholds', () => {
-  it('never lets a guest’s token through, however it arrives', () => {
+  it('keeps a guest’s token only as their personal link, for the host to copy (design PD-213)', () => {
     const token = crypto.randomUUID();
-    const read = readHouseholds([
+    const [household] = readHouseholds([
       householdWire({
-        guests: [guestWire({ token }), guestWire({ id: 'g2', token, isPrimary: false })],
+        guests: [
+          guestWire({ token }),
+          guestWire({ id: 'g2', token: `${token}-2`, isPrimary: false }),
+        ],
       }),
     ]);
-    expect(JSON.stringify(read)).not.toContain(token);
-    for (const guest of read.flatMap((household) => household.guests)) {
-      expect(guest).not.toHaveProperty('token');
-    }
+    const guest = household?.guests[0];
+    expect(guest?.link).toEqual({ isShown: true, token });
+    expect(household?.guests[1]?.link).toEqual({ isShown: true, token: `${token}-2` });
+    expect(guest).not.toHaveProperty('token');
+    const { link: _link, ...rest } = guest ?? {};
+    expect(JSON.stringify(rest)).not.toContain(token);
+  });
+
+  it('reads a missing token as not this caller’s to see', () => {
+    const [household] = readHouseholds([householdWire({ guests: [guestWithoutContact()] })]);
+    expect(household?.guests[0]?.link).toEqual({ isShown: false });
   });
 
   it('keeps only the fields it names, so a new one in the response goes no further', () => {

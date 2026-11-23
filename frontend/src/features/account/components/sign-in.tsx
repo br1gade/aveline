@@ -1,13 +1,16 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
-import { useNavigate, useSearchParams } from 'react-router';
+import { Link, useNavigate, useSearchParams } from 'react-router';
 
+import { isApiError } from '@/api/errors';
 import { problemFrom, type Problem } from '@/api/problems';
 import { browserSession, logIn } from '@/api/session';
 import { APP_PATHS, ROUTE_PATHS } from '@/route-paths';
+import { Icon } from '@/ui';
 import { AppForm, ProblemAlert, SubmitButton, TextInputField } from '@/ui/app-form';
+import { Alert, AlertDescription } from '@/ui/kit/alert';
 
 import { safeNext } from '../safe-next';
 import { signInSchema, type SignInValues } from '../schemas';
@@ -30,6 +33,33 @@ function SignInLinks() {
   );
 }
 
+/**
+ * Too many failed sign-ins to this address in 15 minutes: it waits, even with the right password,
+ * and a reset is offered beside the words (docs/API.md, "Rate limits"; audit F-29). Focused when it
+ * appears, as every problem is.
+ */
+function TooManyAttempts() {
+  const { t } = useTranslation('account');
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => ref.current?.focus(), []);
+  return (
+    <Alert ref={ref} variant="destructive" tabIndex={-1} className="outline-none">
+      <Icon name="circle-alert" size={16} />
+      <AlertDescription>
+        {t('signIn.tooManyAttempts')}{' '}
+        <Link to={ROUTE_PATHS.resetPassword} className="underline underline-offset-4">
+          {t('signIn.resetInstead')}
+        </Link>
+      </AlertDescription>
+    </Alert>
+  );
+}
+
+/** Whether this refusal is the account's wait, not the general per-address limit. */
+function isAccountWait(error: unknown): boolean {
+  return isApiError(error) && error.code === 'LOGIN_TOO_MANY_ATTEMPTS';
+}
+
 /** A wrong password and an unknown address are the same 401, and say the same thing (API.md §2). */
 export function SignIn() {
   const { t } = useTranslation('account');
@@ -37,6 +67,7 @@ export function SignIn() {
   const [searchParams] = useSearchParams();
   const fieldText = useFieldText();
   const [problem, setProblem] = useState<Problem | null>(null);
+  const [isWaiting, setIsWaiting] = useState(false);
   const form = useForm<SignInValues>({
     resolver: zodResolver(signInSchema),
     defaultValues: { email: '', password: '' },
@@ -45,18 +76,21 @@ export function SignIn() {
 
   const onSubmit = async (values: SignInValues) => {
     setProblem(null);
+    setIsWaiting(false);
     try {
       const session = browserSession();
       session.start(await logIn(session.publicApi, values));
       await navigate(safeNext(searchParams.get('next')));
     } catch (error) {
       if (isAddressRefused(error)) form.setError('email', { message: 'email' });
+      else if (isAccountWait(error)) setIsWaiting(true);
       else setProblem(problemFrom(error));
     }
   };
 
   return (
     <AccountLayout title={t('signIn.title')} footer={<SignInLinks />}>
+      {isWaiting ? <TooManyAttempts /> : null}
       {problem ? (
         <ProblemAlert
           problem={problem}

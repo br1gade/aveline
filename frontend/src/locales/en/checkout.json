@@ -11,7 +11,10 @@
     "reserved": "It is waiting for your bank. Finish paying there, or see what the bank said, before ordering again.",
     "open": "Open your order",
     "again": "Start a new order",
-    "checking": "Looking for an order made in this tab…"
+    "checking": "Looking for an order made in this tab…",
+    "tryAgain": "Try again",
+    "unreadableTitle": "We couldn’t check the order made in this tab.",
+    "unreadable": "It may already be paid. Check your connection and try again before ordering, so you don’t pay twice; start a new order only if you’re sure there isn’t one."
   },
   "basket": {
     "heading": "Tickets",

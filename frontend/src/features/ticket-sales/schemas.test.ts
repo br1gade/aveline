@@ -22,6 +22,8 @@ function typeIssues(
     taken: 0,
     startWasSet: false,
     endWasSet: false,
+    isPaymentAvailable: true,
+    storedPriceMinor: null,
     ...options,
   }).safeParse(values);
   return result.success
@@ -83,6 +85,28 @@ describe("a ticket type's own checks", () => {
     ).toEqual([['salesEndDate', 'endBeforeStart']]);
   });
 
+  it.each([
+    ['0', []],
+    ['1', [['price', 'freeInPilot']]],
+    ['15000', [['price', 'freeInPilot']]],
+  ])('takes only a free price while payments are off (F-09): %s', (price, issues) => {
+    expect(typeIssues({ price }, { isPaymentAvailable: false })).toEqual(issues);
+    expect(typeIssues({ price })).toEqual([]);
+  });
+
+  it.each([
+    ['15000', []],
+    ['14999', [['price', 'freeInPilot']]],
+    ['15001', [['price', 'freeInPilot']]],
+    ['0', []],
+  ])(
+    'keeps the price a type had before payments went off, but takes no new one: %s',
+    (price, issues) => {
+      const off = { isPaymentAvailable: false, storedPriceMinor: '15000' };
+      expect(typeIssues({ price }, off)).toEqual(issues);
+    },
+  );
+
   it('cannot clear a sales window once set (FR-67)', () => {
     expect(typeIssues({}, { endWasSet: true })).toEqual([['salesEndDate', 'cannotClear']]);
   });
@@ -94,6 +118,8 @@ describe("a ticket type's own checks", () => {
       taken: 14,
       startWasSet: false,
       endWasSet: true,
+      isPaymentAvailable: true,
+      storedPriceMinor: '15000',
     }).safeParse(values);
     expect(result.success).toBe(true);
   });

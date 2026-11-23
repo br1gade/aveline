@@ -356,7 +356,7 @@ describe('add to calendar (C-32, PD-178)', () => {
 });
 
 describe('InvitationNotFound', () => {
-  it('says so in every interface language, English first', () => {
+  it('says so in every offered language, English first', () => {
     const { container } = render(
       <I18nextProvider i18n={createI18n('en')}>
         <InvitationNotFound />
@@ -366,10 +366,7 @@ describe('InvitationNotFound', () => {
     const languages = [...container.querySelectorAll('main > [lang]')].map((node) =>
       node.getAttribute('lang'),
     );
-    expect(languages).toEqual(['en', 'hy', 'ru', 'fr']);
-    expect(container.querySelector('[lang="fr"]')).toHaveTextContent(
-      'Cette invitation n’est pas disponible.',
-    );
+    expect(languages).toEqual(['en', 'hy', 'ru']);
   });
 });
 

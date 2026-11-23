@@ -9,6 +9,7 @@ import { createAppApi } from '@/api/client';
 import { isApiError } from '@/api/errors';
 
 import { addGuest, importGuests, listGuests, removeGuest, updateGuest } from './api';
+import { readHouseholds } from './read';
 import { guestWire, householdWire } from './test-data';
 
 const ORIGIN = 'http://api.test';
@@ -103,14 +104,10 @@ describe('importGuests', () => {
 });
 
 describe('the token stops at the API module', () => {
-  it('reads the list without any guest’s token', async () => {
-    const token = crypto.randomUUID();
-    server.use(
-      http.get(`${API}/events/e1/guests`, () =>
-        HttpResponse.json([householdWire({ guests: [guestWire({ token })] })]),
-      ),
-    );
-    expect(JSON.stringify(await listGuests(api, 'e1'))).not.toContain(token);
+  it('reads the list only through `readHouseholds`, which keeps the token to `link` (design PD-213)', async () => {
+    const wire = [householdWire({ guests: [guestWire({ token: crypto.randomUUID() })] })];
+    server.use(http.get(`${API}/events/e1/guests`, () => HttpResponse.json(wire)));
+    expect(await listGuests(api, 'e1')).toEqual(readHouseholds(wire));
   });
 
   it('gives back only the new guest’s id from adding, and nothing from editing, whose answers carry the token', async () => {

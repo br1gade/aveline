@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type PointerEvent, type RefObject } from '
 import { useTranslation } from 'react-i18next';
 
 import { Button, Icon } from '@/ui';
+import { ErrorText } from '@/ui/form';
 
 import {
   extendStroke,
@@ -205,8 +206,8 @@ export function DrawingPad({ binding }: { binding: DrawingBinding }) {
         onPointerDown={upload.pen.down}
         onPointerMove={upload.pen.move}
       />
-      {binding.error ? <p className="text-error m-0 text-sm leading-5">{binding.error}</p> : null}
-      {upload.hint ? <p className="text-error m-0 text-sm leading-5">{upload.hint}</p> : null}
+      {binding.error ? <ErrorText>{binding.error}</ErrorText> : null}
+      {upload.hint ? <ErrorText>{upload.hint}</ErrorText> : null}
       <PadStatus state={upload.state} />
       <PadActions upload={upload} />
     </div>

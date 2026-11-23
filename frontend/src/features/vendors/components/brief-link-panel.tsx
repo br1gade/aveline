@@ -1,27 +1,16 @@
 import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { readPublicEnv } from '@/config/env';
+import { copyCapabilityLink, type CopyOutcome } from '@/lib/links';
 import { WRAPPING_BUTTON } from '@/ui/app-form';
 import { Button } from '@/ui/kit/button';
 import { Permitted } from '@/features/permissions';
 
-import { briefUrl, isSendableOrigin } from '../brief-link';
+import { briefUrl } from '../brief-link';
 import type { Booking } from '../types';
 
-type CopyOutcome = 'copied' | 'refused' | 'unsendable' | null;
-
 /** Hands the link to the clipboard and nowhere else; the browser may refuse (design PD-122). */
-async function copyLink(token: string): Promise<CopyOutcome> {
-  const origin = readPublicEnv().VITE_PUBLIC_ORIGIN;
-  if (!isSendableOrigin(origin, window.location.href)) return 'unsendable';
-  try {
-    await navigator.clipboard.writeText(briefUrl(origin, token));
-    return 'copied';
-  } catch {
-    return 'refused';
-  }
-}
+const copyLink = (token: string) => copyCapabilityLink((origin) => briefUrl(origin, token));
 
 /**
  * The vendor's brief link (docs/API.md §6). It is a credential, so it is never shown on the page,
@@ -38,7 +27,7 @@ export function BriefLinkPanel({
 }) {
   const { t } = useTranslation('vendors');
   const headingId = useId();
-  const [outcome, setOutcome] = useState<CopyOutcome>(null);
+  const [outcome, setOutcome] = useState<CopyOutcome | null>(null);
   const isEnded = booking.status === 'CANCELLED';
   const token = booking.link.isShown ? booking.link.token : '';
   return (

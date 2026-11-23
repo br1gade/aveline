@@ -6,29 +6,29 @@ import {
   requireSignedIn,
 } from '@/features/account';
 import { BillingReturnFailed, BillingReturnPage, confirmNewestInvoice } from '@/features/billing';
-import { readServerEnv } from '@/config/env.server';
+import { fetchPaymentOptions, NO_PAYMENTS, paymentProviderOf } from '@/api/payment-options';
 import { languageOfMatches } from '@/lib/i18n';
 import { revalidateUnlessQueryOnly, useDropBankQuery } from '@/lib/routing';
 import { ROUTE_PATHS } from '@/route-paths';
 
 import type { Route } from './+types/billing-return';
 
-/** The bank to pay again at, a server setting until the API says which are set up (FR-109). */
-export function loader() {
-  return { provider: readServerEnv().TICKET_PAYMENT_PROVIDER };
-}
-
 /**
  * Where the bank sends the payer back. It needs the session and asks the bank through the API; the
  * bank's own query goes no further than this address, not into a sign-in's `next` (design PD-130).
  */
-export async function clientLoader({ request, serverLoader }: Route.ClientLoaderArgs) {
+export async function clientLoader({ request }: Route.ClientLoaderArgs) {
   const url = new URL(request.url);
   const withoutQuery = new Request(new URL(ROUTE_PATHS.billingPaymentReturn, url.origin));
   const { api } = await requireSignedIn(withoutQuery);
   await requireOrganizationChosen(api, url, ROUTE_PATHS.billingPaymentReturn);
-  const [{ provider }, read] = await Promise.all([serverLoader(), confirmNewestInvoice(api)]);
-  return { provider, read };
+  // The bank to pay again at: the API's, or none while payments are off (FR-109). Only "Pay again"
+  // uses it, and its press words any refusal, so a failed read must not hide a confirmed payment.
+  const [payment, read] = await Promise.all([
+    fetchPaymentOptions(api).catch(() => NO_PAYMENTS),
+    confirmNewestInvoice(api),
+  ]);
+  return { provider: paymentProviderOf(payment), read };
 }
 clientLoader.hydrate = true as const;
 

@@ -43,9 +43,14 @@ describe('buildCalendarFile (C-32)', () => {
     ]);
   });
 
-  it('leaves the end out when the event names none', () => {
+  it('lasts three hours when the event names no end, rather than none (PD-211)', () => {
     const file = buildCalendarFile({ ...BASE, endsAt: null }, NOW);
     expect(file).not.toContain('DTEND');
+    expect(file).toContain('DURATION:PT3H');
+  });
+
+  it('names the end, and no duration, when the event has one', () => {
+    expect(buildCalendarFile(BASE, NOW)).not.toContain('DURATION');
   });
 
   it('lists every venue in the description, and the first as the place', () => {

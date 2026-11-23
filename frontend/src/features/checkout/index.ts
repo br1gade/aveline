@@ -6,4 +6,4 @@
  */
 export { CheckoutPage, type CheckoutPageProps } from './components/checkout-page';
 export { HolderForm, type HolderFormProps } from './components/holder-form';
-export type { AttendeeBody, PaymentProvider } from './types';
+export type { AttendeeBody } from './types';

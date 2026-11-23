@@ -1,7 +1,31 @@
 import { describe, expect, it } from 'vitest';
 
+import { NO_PAYMENTS } from '@/api/payment-options';
+
 import { readPublicEvent } from './read';
 import { perVenueCheckout, publicEventWire } from './test-data';
+
+describe('whether a paid ticket can be bought (FR-64)', () => {
+  const { checkout } = publicEventWire() as { checkout: Record<string, unknown> };
+  const paymentOf = (payment: unknown) =>
+    readPublicEvent(publicEventWire({ checkout: { ...checkout, payment } })).checkout.payment;
+
+  it.each([
+    ['missing', undefined],
+    ['on with no bank', { isPaymentAvailable: true, providers: [] }],
+    ['on only as a string', { isPaymentAvailable: 'true', providers: ['FAKE'] }],
+    ['off', { isPaymentAvailable: false, providers: [] }],
+  ])('reads %s as nothing payable', (_, payment) => {
+    expect(paymentOf(payment)).toEqual(NO_PAYMENTS);
+  });
+
+  it('keeps only the banks it knows', () => {
+    expect(paymentOf({ isPaymentAvailable: true, providers: ['AMERIABANK', 'PAYPAL'] })).toEqual({
+      isPaymentAvailable: true,
+      providers: ['AMERIABANK'],
+    });
+  });
+});
 
 describe('reading a public event', () => {
   it('keeps the fields the pages use, and nothing else', () => {

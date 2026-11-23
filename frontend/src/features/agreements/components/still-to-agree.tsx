@@ -6,7 +6,7 @@ import { browserSession } from '@/api/session';
 import type { EventDetail } from '@/features/events';
 import { listGuests } from '@/features/guests';
 import type { Question } from '@/features/invitation-design';
-import { WRAPPING_BUTTON } from '@/ui/app-form';
+import { ErrorLine, WRAPPING_BUTTON } from '@/ui/app-form';
 import { Button } from '@/ui/kit/button';
 
 import { readAllAgreements } from '../api';
@@ -89,10 +89,11 @@ function ReadOutcome({
       </p>
     );
   }
+  if (read.kind === 'failed') return <ErrorLine role="alert">{t('stillToAgree.failed')}</ErrorLine>;
   if (read.kind !== 'ready') {
     return (
-      <p role="alert" className={read.kind === 'failed' ? 'text-destructive m-0' : 'm-0'}>
-        {t(read.kind === 'failed' ? 'stillToAgree.failed' : 'refused')}
+      <p role="alert" className="m-0">
+        {t('refused')}
       </p>
     );
   }
