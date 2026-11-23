@@ -67,6 +67,7 @@
       "ticketOrdersAnonymised": "Ticket orders made anonymous: {{count, number}}",
       "ticketAttendeesAnonymised": "Ticket holders made anonymous: {{count, number}}",
       "messagesRedacted": "Messages cleared: {{count, number}}",
+      "invoiceContextsCleared": "Invoice notification details cleared: {{count, number}}",
       "suppressionsHashed": "Do-not-contact records kept as a hash: {{count, number}}",
       "invitesWithdrawn": "Invitations withdrawn: {{count, number}}",
       "accountsClosed": "Accounts closed: {{count, number}}",

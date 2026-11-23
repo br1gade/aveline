@@ -39,6 +39,7 @@ export const ERASURE_COUNTS = [
   'ticketOrdersAnonymised',
   'ticketAttendeesAnonymised',
   'messagesRedacted',
+  'invoiceContextsCleared',
   'suppressionsHashed',
   'invitesWithdrawn',
   'accountsClosed',

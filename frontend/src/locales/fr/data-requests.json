@@ -67,6 +67,7 @@
       "ticketOrdersAnonymised": "Commandes de billets anonymisées : {{count, number}}",
       "ticketAttendeesAnonymised": "Titulaires de billets anonymisés : {{count, number}}",
       "messagesRedacted": "Messages effacés : {{count, number}}",
+      "invoiceContextsCleared": "Informations de notification des factures effacées : {{count, number}}",
       "suppressionsHashed": "Interdictions de contact conservées sous forme de hachage : {{count, number}}",
       "invitesWithdrawn": "Invitations retirées : {{count, number}}",
       "accountsClosed": "Comptes fermés : {{count, number}}",

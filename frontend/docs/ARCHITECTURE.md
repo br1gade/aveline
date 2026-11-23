@@ -1033,6 +1033,7 @@ size check in the CSV's send that the disabled button already covers. **None of 
 | 21 Nov 2026 | **Zone names in sentences come from `useZoneName` in `lib/i18n`** (design PD-215), not from lifting the renderer's `intlZoneName` as the plan proposed | The renderer's labels are adverbial ("по ереванскому времени") and don't fit the host's sentences, written for a zone's name; a city name does, and needs no Intl data |
 | 22 Nov 2026 | **Frontend checks run on push and pull request** (`.github/workflows/frontend.yml`, with `workflow_call` for a release to wait on), on Arthur's go in a root session; `release.yml` and `docs/GOING_LIVE.md` left to the backend | A web image could be released that no client check had run on (audit 20 Nov, A4-01). The release gate is the backend's workflow, so it is proposed, not made |
 | 22 Nov 2026 | **`TextInputField`'s label takes any node**, so `TranslationFields` can mark the language named in "Name in Русский" (`LanguageMarked` in `ui/`) | A language's name inside a translated label was read in the page's language (WCAG 3.1.2, design PD-215). The sentence stays translated whole; the name is found in it as it was put in |
+| 24 Nov 2026 | **The erasure report names invoice notification details cleared**, in every maintained language | The backend now removes the original payer notification context during erasure while retaining the financial invoice. The staff report follows the additive `invoiceContextsCleared` count. |
 
 ## 12. Not yet built
 

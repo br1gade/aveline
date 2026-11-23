@@ -67,6 +67,7 @@
       "ticketOrdersAnonymised": "Заказы билетов обезличены: {{count, number}}",
       "ticketAttendeesAnonymised": "Владельцы билетов обезличены: {{count, number}}",
       "messagesRedacted": "Очищено сообщений: {{count, number}}",
+      "invoiceContextsCleared": "Данные для уведомлений по счетам очищены: {{count, number}}",
       "suppressionsHashed": "Записи о запрете контактов сохранены как хеш: {{count, number}}",
       "invitesWithdrawn": "Отозвано приглашений: {{count, number}}",
       "accountsClosed": "Закрыто учётных записей: {{count, number}}",

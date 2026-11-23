@@ -67,6 +67,7 @@
       "ticketOrdersAnonymised": "Անանուն դարձված տոմսերի պատվերներ՝ {{count, number}}",
       "ticketAttendeesAnonymised": "Անանուն դարձված տոմսատերեր՝ {{count, number}}",
       "messagesRedacted": "Մաքրված հաղորդագրություններ՝ {{count, number}}",
+      "invoiceContextsCleared": "Հաշիվների ծանուցման տվյալները մաքրված են՝ {{count, number}}",
       "suppressionsHashed": "Չկապվելու գրառումներ՝ պահված որպես հեշ՝ {{count, number}}",
       "invitesWithdrawn": "Հետ կանչված հրավերներ՝ {{count, number}}",
       "accountsClosed": "Փակված հաշիվներ՝ {{count, number}}",
