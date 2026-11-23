@@ -1,4 +1,4 @@
-import { PaymentEventSource, PaymentPurpose, PaymentProvider, PaymentStatus, PrismaClient, VerificationPurpose } from '@prisma/client';
+import { PaymentEventSource, PaymentPurpose, PaymentProvider, PaymentStatus, PlatformRole, PrismaClient, VerificationPurpose } from '@prisma/client';
 import { PrismaService } from '../../src/prisma/prisma.service';
 import { PaymentsService } from '../../src/modules/payments/payments.service';
 import { PaymentGatewayRegistry } from '../../src/modules/payments/payment-gateway.registry';
@@ -177,6 +177,38 @@ describe('Payment attempts retain their purchase through uncertain bank outcomes
     expect(second.orderNumber).not.toBe(original.orderNumber);
     expect(registration).toHaveBeenCalledTimes(2);
     expect(await prisma.paymentEvent.count({ where: { paymentId: original.id, source: 'MANUAL', toStatus: 'FAILED' } })).toBe(1);
+  });
+
+  it.each([
+    { platformRole: PlatformRole.SUPPORT, isActive: true },
+    { platformRole: PlatformRole.NONE, isActive: true },
+    { platformRole: PlatformRole.ADMIN, isActive: false },
+  ])('refuses recovery by a verified $platformRole account with isActive=$isActive', async (standing) => {
+    const started = await payments.start(dto('restricted-recovery'));
+    const original = await prisma.payment.update({ where: { orderNumber: started.orderNumber },
+      data: { status: PaymentStatus.CREATED, providerRef: null, outcomeUnknownAt: new Date() } });
+    const actor = await administrator();
+    await prisma.user.update({ where: { id: actor.id }, data: standing });
+    await expect(recoverPayment(prisma as PrismaService, { actorUserId: actor.id, orderNumber: original.orderNumber,
+      action: 'attach-reference', providerRef: `fake_${original.orderNumber}`, reason: 'Bank checked registration', evidenceRef: 'case-access' }))
+      .rejects.toMatchObject({ status: 403 });
+    expect(await prisma.payment.findUniqueOrThrow({ where: { id: original.id } })).toEqual(original);
+    expect(await prisma.paymentEvent.count({ where: { paymentId: original.id, source: 'MANUAL' } })).toBe(0);
+  });
+
+  it.each([
+    { status: PaymentStatus.CREATED, providerRef: 'bank-owned-reference' },
+    { status: PaymentStatus.CAPTURED, providerRef: null },
+  ])('refuses no-registration evidence for a $status attempt with providerRef=$providerRef', async (outcome) => {
+    const started = await payments.start(dto('bank-owned-recovery'));
+    const original = await prisma.payment.update({ where: { orderNumber: started.orderNumber },
+      data: { ...outcome, outcomeUnknownAt: new Date() } });
+    const actor = await administrator();
+    await expect(recoverPayment(prisma as PrismaService, { actorUserId: actor.id, orderNumber: original.orderNumber,
+      action: 'no-registration', reason: 'Attempt must remain protected', evidenceRef: 'case-bank-owned' }))
+      .rejects.toMatchObject({ status: 409 });
+    expect(await prisma.payment.findUniqueOrThrow({ where: { id: original.id } })).toEqual(original);
+    expect(await prisma.paymentEvent.count({ where: { paymentId: original.id, source: 'MANUAL' } })).toBe(0);
   });
 
   it('keeps an unmatched capture quarantined until exact purchase evidence is supplied', async () => {
