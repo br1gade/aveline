@@ -51,6 +51,8 @@ not a source-controlled server policy or a replacement for protected-branch chec
    Compose fresh deployment/redeployment, the pilot journey and encrypted restore.
 5. Run the full integration and HTTP suites, each against a different disposable
    PostgreSQL/Redis/Mongo/Mailpit project with no published dependency ports.
+   The integration job builds first so operator-command tests can load the
+   compiled runtime reader guard in their otherwise fresh checkout.
    The local PostgreSQL service uses a 1 GiB temporary filesystem and a 128 MiB
    WAL checkpoint target to avoid disk contention. PostgreSQL keeps `fsync`
    and synchronous commits enabled. The deployment and restore rehearsals use

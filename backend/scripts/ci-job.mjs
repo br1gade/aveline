@@ -12,7 +12,7 @@ export function stepsFor(layer, env = process.env) {
       { command: 'npx', args: ['tsc', '--noEmit', '--incremental', 'false'] },
       ...['build', 'test:unit', 'test:pilot', 'test:backup', 'test:ops', 'test:ci'].map((name) => npm(name)),
     ]),
-    integration: [npm('test:int', '--json', '--outputFile=/tmp/aveline-integration-results.json')],
+    integration: [npm('build'), npm('test:int', '--json', '--outputFile=/tmp/aveline-integration-results.json')],
     http: [npm('test:e2e', '--json', '--outputFile=/tmp/aveline-http-results.json')],
     containers: [
       { command: process.execPath, args: ['scripts/test-edge.mjs'] },

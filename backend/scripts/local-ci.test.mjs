@@ -34,6 +34,13 @@ test('shared CI plans preserve all layers and forbid unknown jobs', () => {
   assert.throws(() => stepsFor('release'), /Unknown/);
 });
 
+test('isolated integration jobs build the operator runtime before exercising it', () => {
+  const steps = stepsFor('integration');
+  const build = steps.findIndex((step) => step.command === 'npm' && step.args.includes('build'));
+  const tests = steps.findIndex((step) => step.command === 'npm' && step.args.includes('test:int'));
+  assert.ok(build >= 0 && tests > build, 'Operator integration tests need the freshly compiled reader guard');
+});
+
 test('the shared runner stops at a failed command instead of running later checks', async () => {
   const { runSteps } = await import('./ci-job.mjs');
   const { mkdtemp, readFile, rm } = await import('node:fs/promises');
