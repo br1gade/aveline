@@ -35,7 +35,7 @@
     "submit": "Se connecter",
     "submitting": "Connexion…",
     "refused": "Cet e-mail et ce mot de passe ne correspondent à aucun compte.",
-    "tooManyAttempts": "Trop de tentatives de connexion échouées pour ce compte. Attendez 15 minutes et réessayez. Si vous pensez que quelqu’un d’autre essaie votre mot de passe, réinitialisez-le.",
+    "tooManyAttempts": "Trop de tentatives de connexion échouées pour ce compte. Attendez 15 minutes et réessayez. Si vous pensez que quelqu’un d’autre essaie votre mot de passe, réinitialisez-le : vous serez connecté aussitôt.",
     "resetInstead": "Réinitialiser votre mot de passe"
   },
   "register": {
@@ -59,15 +59,11 @@
     },
     "choose": {
       "title": "Choisissez un nouveau mot de passe",
-      "lead": "Tous les appareils connectés à votre compte seront déconnectés.",
+      "lead": "Tous les appareils connectés à votre compte seront déconnectés, et vous serez connecté ici.",
       "submit": "Enregistrer le nouveau mot de passe",
       "submitting": "Enregistrement…"
     },
-    "linkInvalid": "Ce lien a expiré, a déjà été utilisé, ou un lien plus récent a été envoyé.",
-    "done": {
-      "title": "Mot de passe modifié",
-      "body": "Tous les appareils ont été déconnectés. Connectez-vous avec votre nouveau mot de passe."
-    }
+    "linkInvalid": "Ce lien a expiré, a déjà été utilisé, ou un lien plus récent a été envoyé."
   },
   "verifyEmail": {
     "title": "Confirmer votre adresse e-mail",

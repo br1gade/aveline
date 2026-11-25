@@ -1,0 +1,16 @@
+{
+  "back": "Back to the staff pages",
+  "title": "Pilot totals",
+  "lead": "Across every customer, counted when this page opens. Organizations owned by Aveline’s own staff, such as rehearsals, are left out.",
+  "refused": "Only Aveline’s administrators see the pilot’s totals.",
+  "count": "{{count, number}}",
+  "share": "{{share, number(style: percent)}}",
+  "hosts": "Hosts who made an event",
+  "invitationsSent": "Invitations sent",
+  "invitationsSentAbout": "Accepted or delivered, on any channel. Queued, failed and bounced ones aren’t counted.",
+  "replied": "Guests who replied",
+  "repliedOf": "{{part, number}} of {{whole, number}} guests",
+  "checkedIn": "Expected guests checked in",
+  "checkedInOf": "{{part, number}} of {{whole, number}} who said they’d come",
+  "checkedInAbout": "This can pass 100%, as the door admits guests who never said yes."
+}

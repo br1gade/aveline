@@ -113,6 +113,7 @@
     "fields": "Some details were refused. They are marked above.",
     "rateLimited": "Too many tries in a short time. Wait a minute, then press again.",
     "noAnswer": "We didn’t get an answer. Press again: your order won’t be placed twice.",
+    "uncertain": "We can’t tell yet whether your bank started this payment, so our team needs to check it. Please don’t order again: contact us with the reference below.",
     "other": "The order was refused, with this reason:",
     "reference": "Reference: {{requestId}}",
     "promo": "{{reason}} Remove the code, or try another.",

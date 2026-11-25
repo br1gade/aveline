@@ -8,9 +8,23 @@ interface InvoiceWire extends Omit<Invoice, 'lines' | 'paymentStatus'> {
   lines: unknown;
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+/** A line's words in the language asked for, if the line was issued with them (FR-110). */
+function readLineDisplay(wire: unknown): InvoiceLine['display'] {
+  if (!isRecord(wire) || typeof wire.description !== 'string') return null;
+  return {
+    locale: typeof wire.locale === 'string' ? wire.locale : null,
+    description: wire.description,
+  };
+}
+
+/** Lines are stored JSON: one written before a field existed lacks it (docs/API.md §6). */
 function readLine(wire: unknown): InvoiceLine[] {
-  if (typeof wire !== 'object' || wire === null) return [];
-  const { description, quantity, totalMinor, planKey } = wire as Record<string, unknown>;
+  if (!isRecord(wire)) return [];
+  const { description, quantity, totalMinor, planKey, display } = wire;
   if (typeof description !== 'string' || typeof totalMinor !== 'string') return [];
   return [
     {
@@ -18,6 +32,7 @@ function readLine(wire: unknown): InvoiceLine[] {
       quantity: typeof quantity === 'number' ? quantity : 1,
       totalMinor,
       planKey: typeof planKey === 'string' ? planKey : null,
+      display: readLineDisplay(display),
     },
   ];
 }
@@ -43,8 +58,12 @@ export function readConfirmed(wire: InvoiceWire & { payment?: { status: string }
   return { ...readInvoice(wire), paymentStatus: wire.payment?.status ?? null };
 }
 
+function readPlanDisplay({ locale, name, features }: Plan['display']): Plan['display'] {
+  return { locale, name, features: features.map(({ key, label }) => ({ key, label })) };
+}
+
 export function readPlan(wire: Plan): Plan {
-  const { key, name, tier, priceMinor, currency, interval, entitlements } = wire;
+  const { key, name, tier, priceMinor, currency, interval, entitlements, display } = wire;
   const { maxEventsPerPeriod, maxGuestsPerEvent, maxLocales, invitationLifetimeDays, features } =
     entitlements;
   return {
@@ -61,6 +80,7 @@ export function readPlan(wire: Plan): Plan {
       invitationLifetimeDays,
       features,
     },
+    display: readPlanDisplay(display),
   };
 }
 
@@ -68,11 +88,11 @@ export function readPlan(wire: Plan): Plan {
 type SubscriptionWire = Omit<Subscription, 'pendingFree'> & { pendingFree?: PendingFree | null };
 
 export function readSubscription(wire: SubscriptionWire): Subscription {
-  const { key, name, priceMinor, currency, interval } = wire.plan;
+  const { key, name, priceMinor, currency, interval, display } = wire.plan;
   const pending = wire.pendingFree ?? null;
   return {
     status: wire.status,
-    plan: { key, name, priceMinor, currency, interval },
+    plan: { key, name, priceMinor, currency, interval, display: readPlanDisplay(display) },
     currentPeriodEnd: wire.currentPeriodEnd,
     cancelAtPeriodEnd: wire.cancelAtPeriodEnd,
     pendingFree: pending && { planKey: pending.planKey, effectiveAt: pending.effectiveAt },

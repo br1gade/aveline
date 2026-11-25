@@ -30,6 +30,7 @@ function review(over: Record<string, unknown> = {}) {
   return {
     id: 'v1',
     organizationId: 'org-petrosyan',
+    organization: { name: 'Petrosyan Wedding', kind: 'HOST' },
     status: 'OPEN',
     reason: 'LAST_OWNER_CLOSURE',
     openedAt: '2026-11-01T09:00:00Z',
@@ -40,10 +41,6 @@ function review(over: Record<string, unknown> = {}) {
   };
 }
 
-const NAMES: Record<string, string> = {
-  'org-petrosyan': 'Petrosyan Wedding',
-  'org-ani': 'Ani & Co',
-};
 const MEMBERS = [
   { userId: 'u-owner', name: 'Armen Petrosyan', role: 'OWNER', joinedAt: '2026-01-01T00:00:00Z' },
   { userId: 'u-lilit', name: 'Lilit Petrosyan', role: 'MANAGER', joinedAt: '2026-02-01T00:00:00Z' },
@@ -61,13 +58,9 @@ function refusal(status: number, message: string, code?: string) {
   );
 }
 
-function serveOrganizations(nameOf: (id: string) => Response | undefined = () => undefined) {
+/** The members a handover reads, naming the organization in its header. */
+function serveOrganizations() {
   server.use(
-    http.get(`${ORIGIN}/api/v1/organizations/current`, ({ request }) => {
-      const id = request.headers.get('x-aveline-organization-id') ?? '';
-      named.push(id || null);
-      return nameOf(id) ?? HttpResponse.json({ name: NAMES[id], accessRevision: 1 });
-    }),
     http.get(`${ORIGIN}/api/v1/organizations/current/members`, ({ request }) => {
       named.push(request.headers.get('x-aveline-organization-id'));
       return HttpResponse.json({ items: MEMBERS, nextCursor: null, accessRevision: 1 });
@@ -134,23 +127,14 @@ const one = () => HttpResponse.json({ items: [review()], nextCursor: null });
 const card = () => screen.getByText('Petrosyan Wedding').closest('li') as HTMLElement;
 
 describe('the reviews', () => {
-  it('names each organization by asking for it, and says why it was opened', async () => {
+  it('names each organization as the review does, reading nothing more (FR-133)', async () => {
     serve(one);
     serveOrganizations();
     await open();
     expect(await screen.findByText('Petrosyan Wedding')).toBeVisible();
-    expect(named).toContain('org-petrosyan');
+    expect(named).toEqual([]);
     expect(card()).toHaveTextContent('Its last owner asked to close it.');
     expect(card()).toHaveTextContent('Opened 1 November 2026');
-  });
-
-  it('shows the reference when the name can’t be read, and still offers every decision', async () => {
-    serve(one);
-    serveOrganizations(() => refusal(500, 'down'));
-    await open();
-    const row = (await screen.findByText(/name couldn’t be read/)).closest('li') as HTMLElement;
-    expect(row).toHaveTextContent('org-petrosyan');
-    expect(within(row).getByRole('button', { name: 'Close it: org-petrosyan' })).toBeEnabled();
   });
 
   it('shows a reason it doesn’t know as it came, in English', async () => {
@@ -160,16 +144,22 @@ describe('the reviews', () => {
     expect(await screen.findByText('NEW_REASON')).toHaveAttribute('lang', 'en');
   });
 
-  it('reads more past the first ten, by the cursor', async () => {
+  it('reads more past the first fifty, by the cursor', async () => {
     const cursors: Array<string | null> = [];
     server.use(
       http.get(REVIEWS, ({ request }) => {
         const url = new URL(request.url);
         cursors.push(url.searchParams.get('cursor'));
-        expect(url.searchParams.get('limit')).toBe('10');
+        expect(url.searchParams.get('limit')).toBe('50');
         return url.searchParams.get('cursor')
           ? HttpResponse.json({
-              items: [review({ id: 'v2', organizationId: 'org-ani' })],
+              items: [
+                review({
+                  id: 'v2',
+                  organizationId: 'org-ani',
+                  organization: { name: 'Ani & Co', kind: 'PLANNER' },
+                }),
+              ],
               nextCursor: null,
             })
           : HttpResponse.json({ items: [review()], nextCursor: 'c1' });
@@ -237,21 +227,6 @@ describe('deciding (design PD-176)', () => {
     await user.clear(box);
     await user.type(box, '  petrosyan WEDDING ');
     await user.click(confirm);
-    await waitFor(() =>
-      expect(resolved).toEqual([{ id: 'v1', body: { decision: 'CLOSE', expectedRevision: 3 } }]),
-    );
-  });
-
-  it('asks for the reference instead when the name couldn’t be read', async () => {
-    serve(one);
-    serveOrganizations(() => refusal(500, 'down'));
-    answerResolve();
-    const user = await open();
-    await user.click(await screen.findByRole('button', { name: 'Close it: org-petrosyan' }));
-    const dialog = await screen.findByRole('alertdialog');
-    const box = within(dialog).getByRole('textbox', { name: /Type the organization’s reference/ });
-    await user.type(box, 'ORG-PETROSYAN');
-    await user.click(within(dialog).getByRole('button', { name: 'Close it' }));
     await waitFor(() =>
       expect(resolved).toEqual([{ id: 'v1', body: { decision: 'CLOSE', expectedRevision: 3 } }]),
     );

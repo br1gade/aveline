@@ -87,6 +87,8 @@
     "scheduled": "{{name}} starts when your paid period ends. Until then, nothing changes."
   },
   "invoices": {
+    "more": "Show more invoices",
+    "moreFailed": "More couldn’t be loaded. Please try again.",
     "title": "Invoices",
     "zone": "Dates are in Yerevan time. Open an invoice to see what it’s for.",
     "none": "No invoices yet.",
@@ -117,6 +119,7 @@
     "noInvoice": "We couldn’t find this invoice in your organization.",
     "noPayment": "This invoice has no payment to check yet.",
     "disagreement": "The bank and our record of this payment disagree.",
+    "uncertain": "We can’t tell yet how this payment went, so our team needs to check it. Please don’t pay again: contact us, and we’ll sort it out.",
     "rateLimited": "Too many requests just now. Wait a minute, then try again.",
     "noAnswer": "We didn’t get an answer. Check your connection and try again.",
     "other": "This couldn’t be done.",
@@ -144,14 +147,5 @@
     "lead": "What each Aveline plan costs and what it includes.",
     "start": "Create an account",
     "metaTitle": "Prices · Aveline"
-  },
-  "features": {
-    "seating": "Seating plan",
-    "check-in": "Check-in at the door",
-    "operations": "Running order and the day itself",
-    "vendor-briefs": "Briefs for vendors",
-    "thank-yous": "Thank-you messages",
-    "custom-design": "A design of your own",
-    "coordinator": "A coordinator"
   }
 }

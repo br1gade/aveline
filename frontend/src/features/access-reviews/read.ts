@@ -4,11 +4,13 @@ import type { AccessReview } from './types';
 export function readReview({
   id,
   organizationId,
+  organization,
   reason,
   openedAt,
   revision,
 }: AccessReview): AccessReview {
-  return { id, organizationId, reason, openedAt, revision };
+  const { name, kind } = organization;
+  return { id, organizationId, organization: { name, kind }, reason, openedAt, revision };
 }
 
 export const KNOWN_REASONS = ['LAST_OWNER_CLOSURE', 'INACTIVE_OWNER_RECOVERY'] as const;

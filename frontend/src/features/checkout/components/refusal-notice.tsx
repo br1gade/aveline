@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { formatMinor } from '@/lib/money';
 import { Notice } from '@/ui';
+import { SupportContacts } from '@/ui/support-contacts';
 
 import type { CheckoutRefusal } from '../refusals';
 import { useCheckoutSetting } from './checkout-context';
@@ -51,6 +52,16 @@ function Words({ refusal, t, money }: WordsProps) {
   const reference = refusal.requestId ? (
     <p>{t('refusals.reference', { requestId: refusal.requestId })}</p>
   ) : null;
+  if (refusal.kind === 'uncertain') {
+    // Never "press again": a new order would start a second payment (docs/API.md §6).
+    return (
+      <>
+        <p>{t('refusals.uncertain')}</p>
+        {reference}
+        <SupportContacts linkClassName="text-action underline decoration-1 underline-offset-3" />
+      </>
+    );
+  }
   if (refusal.kind === 'noAnswer') {
     return (
       <>

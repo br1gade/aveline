@@ -1034,6 +1034,11 @@ size check in the CSV's send that the disabled button already covers. **None of 
 | 22 Nov 2026 | **Frontend checks run on push and pull request** (`.github/workflows/frontend.yml`, with `workflow_call` for a release to wait on), on Arthur's go in a root session; `release.yml` and `docs/GOING_LIVE.md` left to the backend | A web image could be released that no client check had run on (audit 20 Nov, A4-01). The release gate is the backend's workflow, so it is proposed, not made |
 | 22 Nov 2026 | **`TextInputField`'s label takes any node**, so `TranslationFields` can mark the language named in "Name in Русский" (`LanguageMarked` in `ui/`) | A language's name inside a translated label was read in the page's language (WCAG 3.1.2, design PD-215). The sentence stays translated whole; the name is found in it as it was put in |
 | 24 Nov 2026 | **The erasure report names invoice notification details cleared**, in every maintained language | The backend now removes the original payer notification context during erasure while retaining the financial invoice. The staff report follows the additive `invoiceContextsCleared` count. |
+| 25 Nov 2026 | **A confirmed password reset starts the session it answers with**, as a sign-in does, and announces no sign-out (FR-160) | Signing out would have the other tabs drop the stored refresh token, the new one included; they read the new one instead, and `refresh.ts` already retries a newer stored token before clearing |
+| 25 Nov 2026 | **The pilot's totals are a feature of their own,** `features/pilot-stats`, at `/app/staff/pilot`, linked for an administrator only (design PD-205, FR-159) | It reads one admin-only route and shares nothing with the customers' tools; shares are worked out in `totals.ts`, a dash when there is nothing to take them of |
+| 25 Nov 2026 | **Cursor lists share `useMoreByCursor` in `ui/app-form`** (customers, data requests, invoices, access reviews) | Four lists needed the same "Show more"; a new first page, as after a revalidation, starts each over. The members' list and agreements keep their own for now |
+| 25 Nov 2026 | **The price list asks for the page's language** (`createVisitorApi(incoming, language)`) | The server's read sent `Accept-Language: *`, so plans' translated words (FR-110) would always have come in English |
+| 25 Nov 2026 | **Two payment `502`s are known by their words** (`isPaymentUncertain`, design PD-216, FR-199) | Only staff can settle them, and a retry or a new order could start a second payment; they have no code yet |
 
 ## 12. Not yet built
 
@@ -1044,15 +1049,13 @@ size check in the CSV's send that the disabled button already covers. **None of 
   - **Waiting for an input:**
     - the privacy notice's text (A2-01, lawyer), from the inventory in [BROWSER_STORAGE.md](BROWSER_STORAGE.md);
     - a terms page (A2-11, if decided);
-    - the staff counts page (A2-04, FR-159);
     - the renderer's layouts and palettes (A2-05);
     - the design review's open fixes (A2-06, designer);
     - a default share image and the seat map (A2-09).
-  - **For the paid launch:** checkout's seller and refund terms and a printable invoice (A2-12), and plan names per language (A2-13).
+  - **For the paid launch:** checkout's seller and refund terms and a printable invoice (A2-12).
   - **Outside `frontend/`:** a release that waits for the client's checks is `release.yml`'s, the backend's (A4-01; BACKEND_REQUESTS §4).
-- Of the 16 November answers (design PD-203 to PD-210): the staff page of the pilot's counts, which waits for a
-  backend read (FR-159, PD-205); the page a visible unsubscribe line would land on, wanted after the pilot (PD-210);
-  the sign-in wait's reset, which only lets the owner in once the backend ends the wait on a reset (FR-160). The
+- Of the 16 November answers (design PD-203 to PD-210): the page a visible unsubscribe line would land on, wanted
+  after the pilot (PD-210). The
   pilot-mode journeys in `test/e2e/` passed on 16 November against a development stack with `PILOT_MODE=true`; the
   production-mode local install (`ops apply`) has not run, as its web image needs a support contact (FR-161).
 - Of the audit's small inconsistencies (F-35): a venue the host typed has no map link, as the guest invitation spec
@@ -1094,19 +1097,21 @@ size check in the CSV's send that the disabled button already covers. **None of 
   Handling a request is Aveline's staff's.
 - Of Aveline's own staff's tools (C-24): authoring templates, which waits as enquiries do: the backend refuses
   drafts, edits and uploads while `TEMPLATE_AUTHORING_ENABLED` and `TEMPLATE_ASSETS_ENABLED` are off, and
-  publishing until a renderer manifest is registered in its code. Enquiries, which wait until the backend enables them, and with them carrying out a request that has no address; paging
-  past the newest 50 organizations and the 200 soonest-due requests (FR-127). A requester is verified by a reply from the request's address (C-53), which the page can only ask for. Binding an enquiry, which a request with an address can also need, and which answers the backend's
-  words as they came (PD-168). Access reviews' names, read one by one (FR-133). Only a mock has met these: no real
+  publishing until a renderer manifest is registered in its code. Enquiries, which wait until the backend enables them, and with them carrying out a request that has no address. A requester is verified by a reply from the request's address (C-53), which the page can only ask for. Binding an enquiry, which a request with an address can also need, and which answers the backend's
+  words as they came (PD-168). Only a mock has met these: no real
   erasure and no real closure, and no staff page has an end-to-end test, as nothing on a development stack
-  makes an administrator (FR-157). Staff accounts (PD-200) alone were walked against a local backend, in all
-  four languages, with an administrator set by hand in its database.
+  makes an administrator (FR-157). Staff accounts (PD-200) were walked against a local backend, in all four
+  languages, with an administrator set by hand in its database; on 25 November 2026 the pilot's totals, customers,
+  the open data-request queue and access reviews were too, in English at desktop width, with an administrator granted
+  by `staff-roles.js` (axe clean on each).
 - Of a ticket's QR code and the door's scanner (C-25, PD-171 to PD-174): **a real camera has never read a code.**
   A fake camera in Chromium has, so an iPhone and an Android phone, in real light at a real door, are still to
   come, as are a real refusal of permission, which the walk's browser can't produce, and a code on a printed
   page. How long a code should be held, and how often a real picture freezes without saying so, need a real door
   (PD-173).
-- Of billing: a plan's words in other languages (FR-110); more than the newest
-  hundred invoices (FR-110); a real bank: only the mock's return has been followed.
+- Of billing: the bank's return naming its invoice (FR-110 d) and renewal (FR-110 e); a printable invoice (PD-209); a
+  real bank: only the mock's return has been followed, and the two payments only staff can settle (PD-216) only in
+  unit tests.
 
 - The organizer app beyond its way in, an event's details, its guest list, its venues, its
   seating, its exports, its invitation's design, publishing and sending, how guests answer, the

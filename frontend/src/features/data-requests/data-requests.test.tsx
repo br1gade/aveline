@@ -50,7 +50,7 @@ function request(over: Record<string, unknown> = {}) {
   };
 }
 
-const reads: Array<string | null> = [];
+const reads: string[] = [];
 const writes: Array<{ path: string; body: unknown }> = [];
 
 function refusal(status: number, message: string) {
@@ -60,13 +60,28 @@ function refusal(status: number, message: string) {
   );
 }
 
-/** The queue, by status: what the backend's `?status=` would answer. */
-function serve(rows: () => ReturnType<typeof request>[]) {
+const OPEN: readonly string[] = ['RECEIVED', 'VERIFYING', 'IN_PROGRESS'];
+
+/**
+ * The paged queue as the backend's `?queue=&status=` would answer it, in the order given (the
+ * backend's own), `pageSize` at a time. Each read is logged as "QUEUE STATUS".
+ */
+function serve(rows: () => ReturnType<typeof request>[], pageSize = 50) {
   server.use(
-    http.get(REQUESTS, ({ request: asked }) => {
-      const status = new URL(asked.url).searchParams.get('status');
-      reads.push(status);
-      return HttpResponse.json(rows().filter((row) => row.status === status));
+    http.get(`${REQUESTS}/page`, ({ request: asked }) => {
+      const query = new URL(asked.url).searchParams;
+      const queue = query.get('queue') ?? 'OPEN';
+      const status = query.get('status');
+      reads.push([queue, status].filter(Boolean).join(' '));
+      const inQueue = rows().filter((row) =>
+        status ? row.status === status : OPEN.includes(row.status) === (queue === 'OPEN'),
+      );
+      const start = Number(query.get('cursor') ?? 0);
+      const end = start + pageSize;
+      return HttpResponse.json({
+        items: inQueue.slice(start, end),
+        nextCursor: end < inQueue.length ? String(end) : null,
+      });
     }),
   );
 }
@@ -134,35 +149,59 @@ async function open(address: string = APP_PATHS.staffDataRequests) {
 const item = () => screen.getByText(ADDRESS).closest('li') as HTMLElement;
 
 describe('the queue', () => {
-  it('reads every open status and sorts them by what is due soonest', async () => {
+  it('reads every open status in one read, in the backend’s order (FR-127)', async () => {
     serve(() => [
-      request({
-        id: 'a',
-        status: 'RECEIVED',
-        subjectEmail: 'later@x.am',
-        dueAt: '2026-12-01T10:00:00Z',
-      }),
-      request({
-        id: 'b',
-        status: 'IN_PROGRESS',
-        subjectEmail: 'sooner@x.am',
-        dueAt: '2026-11-10T10:00:00Z',
-      }),
-      request({
-        id: 'c',
-        status: 'VERIFYING',
-        subjectEmail: 'middle@x.am',
-        dueAt: '2026-11-15T10:00:00Z',
-      }),
+      request({ id: 'b', status: 'IN_PROGRESS', subjectEmail: 'sooner@x.am' }),
+      request({ id: 'c', status: 'VERIFYING', subjectEmail: 'middle@x.am' }),
+      request({ id: 'a', status: 'RECEIVED', subjectEmail: 'later@x.am' }),
       request({ id: 'd', status: 'COMPLETED', subjectEmail: 'done@x.am' }),
     ]);
     await open();
-    expect(reads.toSorted()).toEqual(['IN_PROGRESS', 'RECEIVED', 'VERIFYING']);
+    expect(reads).toEqual(['OPEN']);
     const order = screen.getAllByRole('listitem').map((row) => row.textContent);
     expect(order[0]).toContain('sooner@x.am');
     expect(order[1]).toContain('middle@x.am');
     expect(order[2]).toContain('later@x.am');
     expect(document.body).not.toHaveTextContent('done@x.am');
+  });
+
+  it('keeps a closed tab in the backend’s order, newest completed first, not by due date', async () => {
+    serve(() => [
+      request({
+        id: 'n',
+        status: 'COMPLETED',
+        subjectEmail: 'newest@x.am',
+        dueAt: '2026-12-01T10:00:00Z',
+      }),
+      request({
+        id: 'o',
+        status: 'COMPLETED',
+        subjectEmail: 'older@x.am',
+        dueAt: '2026-10-01T10:00:00Z',
+      }),
+    ]);
+    await open(`${APP_PATHS.staffDataRequests}?status=completed`);
+    const order = screen.getAllByRole('listitem').map((row) => row.textContent);
+    expect(order[0]).toContain('newest@x.am');
+    expect(order[1]).toContain('older@x.am');
+  });
+
+  it('shows the next requests by the cursor, in the same tab', async () => {
+    serve(
+      () => [
+        request({ id: 'a', status: 'REJECTED', subjectEmail: 'one@x.am' }),
+        request({ id: 'b', status: 'REJECTED', subjectEmail: 'two@x.am' }),
+        request({ id: 'c', status: 'REJECTED', subjectEmail: 'three@x.am' }),
+      ],
+      2,
+    );
+    const user = await open(`${APP_PATHS.staffDataRequests}?status=rejected`);
+    expect(screen.queryByText('three@x.am')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Show more requests' }));
+    expect(await screen.findByText('three@x.am')).toBeVisible();
+    expect(screen.getByText('one@x.am')).toBeVisible();
+    expect(reads).toEqual(['CLOSED REJECTED', 'CLOSED REJECTED']);
+    expect(screen.queryByRole('button', { name: 'Show more requests' })).not.toBeInTheDocument();
   });
 
   it('never marks a closed one overdue, and still shows its notes', async () => {
@@ -175,12 +214,12 @@ describe('the queue', () => {
   });
 
   it.each([
-    ['rejected', ['REJECTED']],
-    ['bogus', ['RECEIVED', 'VERIFYING', 'IN_PROGRESS']],
-  ])('reads %s as its tab', async (tab, statuses) => {
+    ['rejected', 'CLOSED REJECTED'],
+    ['bogus', 'OPEN'],
+  ])('reads %s as its tab', async (tab, read) => {
     serve(() => []);
     await open(`${APP_PATHS.staffDataRequests}?status=${tab}`);
-    expect([...reads].sort()).toEqual([...statuses].sort());
+    expect(reads).toEqual([read]);
   });
 
   it('marks one past its date, and not one on it', async () => {
@@ -203,7 +242,7 @@ describe('the queue', () => {
   it('shows closed ones on their own tab, offering no step, only what the form said', async () => {
     serve(() => [request({ status: 'COMPLETED' })]);
     await open(`${APP_PATHS.staffDataRequests}?status=completed`);
-    expect(reads).toEqual(['COMPLETED']);
+    expect(reads).toEqual(['CLOSED COMPLETED']);
     expect(
       within(item())
         .getAllByRole('button')
@@ -307,20 +346,8 @@ describe('the queue', () => {
     expect(screen.getByText('None here.')).toBeInTheDocument();
   });
 
-  it('says which go missing past the limit on a closed tab', async () => {
-    serve(() => []);
-    await open(`${APP_PATHS.staffDataRequests}?status=completed`);
-    expect(screen.getByText(/the newest may be missing/)).toBeInTheDocument();
-  });
-
-  it('says how much it can show', async () => {
-    serve(() => []);
-    await open();
-    expect(screen.getByText(/at most 200/)).toBeInTheDocument();
-  });
-
   it('tells someone without the permission that this is for administrators', async () => {
-    server.use(http.get(REQUESTS, () => refusal(403, 'Forbidden resource')));
+    server.use(http.get(`${REQUESTS}/page`, () => refusal(403, 'Forbidden resource')));
     await open();
     expect(screen.getByText(/Aveline’s administrators/)).toBeInTheDocument();
   });
@@ -329,7 +356,9 @@ describe('the queue', () => {
     serve(() => [request()]);
     if (!current.session) throw new Error('No session in this test');
     const { requests } = await loadDataRequests(current.session.api, null, NOW);
-    expect(requests.kind === 'ready' && requests.value[0]).not.toHaveProperty('handledByUserId');
+    expect(requests.kind === 'ready' && requests.value.items[0]).not.toHaveProperty(
+      'handledByUserId',
+    );
   });
 });
 

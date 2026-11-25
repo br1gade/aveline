@@ -43,7 +43,7 @@ function useChoices(data: BillingData) {
   const current = data.subscription.kind === 'ready' ? data.subscription.value : null;
   const ofPlan = (plan: Plan): Choice => ({
     planKey: plan.key,
-    name: plan.name,
+    name: plan.display.name,
     price: price(plan.priceMinor, plan.currency, plan.interval),
     kind: choiceKind(plan, current, data.now),
     provider: isFree(plan.priceMinor) ? undefined : provider,

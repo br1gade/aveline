@@ -5,11 +5,19 @@ import { Link } from 'react-router';
 import { browserSession } from '@/api/session';
 import { LoadedProblem } from '@/features/sending';
 import { APP_PATHS } from '@/route-paths';
-import { StatusLine, useDialogOpener, usePageStatus, type PageActions } from '@/ui/app-form';
+import {
+  MoreButton,
+  StatusLine,
+  useDialogOpener,
+  useMoreByCursor,
+  usePageStatus,
+  type CursorPage,
+  type PageActions,
+} from '@/ui/app-form';
 import { cn } from '@/ui/cn';
 
 import { updateRequest } from '../api';
-import { TABS, type DataRequestsData, type RequestTab } from '../load';
+import { readTab, TABS, type DataRequestsData, type RequestTab } from '../load';
 import { requestRefusalOf, type RequestRefusal } from '../refusals';
 import type { RequestStep } from '../steps';
 import type { Carried, DataRequest } from '../types';
@@ -75,9 +83,53 @@ function useSteps(page: PageActions) {
   return { dialog, setDialog, refusal, carried, onStep, onCarried, restoreFocus };
 }
 
+interface ListProps {
+  tab: RequestTab;
+  first: CursorPage<DataRequest>;
+  now: number;
+  page: PageActions;
+  onStep: (request: DataRequest, step: RequestStep, opener: HTMLElement) => void;
+}
+
+/** The tab's first page, and the next ones by the cursor (FR-127), in the backend's order. */
+function RequestList({ tab, first, now, page, onStep }: ListProps) {
+  const { t } = useTranslation('data-requests');
+  const { items, hasMore, isLoading, error, more } = useMoreByCursor(first, (cursor) =>
+    readTab(browserSession().api, tab, cursor),
+  );
+  return (
+    <>
+      {items.length === 0 ? (
+        <p className="m-0">{t(tab === 'open' ? 'none' : 'noneClosed')}</p>
+      ) : null}
+      <ul className="m-0 flex max-w-[40rem] list-none flex-col gap-3 p-0">
+        {items.map((request) => (
+          <RequestCard
+            key={`${request.id}:${request.notes ?? ''}`}
+            request={request}
+            now={now}
+            page={page}
+            onStep={onStep}
+          />
+        ))}
+      </ul>
+      {hasMore ? (
+        <MoreButton
+          label={t('more')}
+          failed={t('moreFailed')}
+          isLoading={isLoading}
+          hasFailed={error !== null}
+          onPress={more}
+        />
+      ) : null}
+    </>
+  );
+}
+
 /**
- * The queue of data-subject requests, soonest due first (docs/API.md §6; design PD-167). Administrators
- * only, and told so otherwise. Nothing from a request enters the address, storage or a log.
+ * The queue of data-subject requests: open ones soonest due first, closed ones newest first
+ * (docs/API.md §6; design PD-167). Administrators only, and told so otherwise. Nothing from a
+ * request enters the address, storage or a log.
  */
 export function DataRequestsPage({ data }: { data: DataRequestsData }) {
   const { t } = useTranslation('data-requests');
@@ -100,23 +152,13 @@ export function DataRequestsPage({ data }: { data: DataRequestsData }) {
       {requests.kind === 'ready' ? (
         <>
           <Tabs tab={tab} />
-          <p className="text-muted-foreground m-0 text-sm">
-            {t(tab === 'open' ? 'limit' : 'limitClosed')}
-          </p>
-          {requests.value.length === 0 ? (
-            <p className="m-0">{t(tab === 'open' ? 'none' : 'noneClosed')}</p>
-          ) : null}
-          <ul className="m-0 flex max-w-[40rem] list-none flex-col gap-3 p-0">
-            {requests.value.map((request) => (
-              <RequestCard
-                key={`${request.id}:${request.notes ?? ''}`}
-                request={request}
-                now={now}
-                page={page}
-                onStep={steps.onStep}
-              />
-            ))}
-          </ul>
+          <RequestList
+            tab={tab}
+            first={requests.value}
+            now={now}
+            page={page}
+            onStep={steps.onStep}
+          />
         </>
       ) : (
         <LoadedProblem loaded={requests} refusedText={t('refusal.forbidden')} />

@@ -6,41 +6,28 @@ import { Button } from '@/ui/kit/button';
 import { useCan } from '@/features/permissions';
 
 import { isFree, offerFor } from '../plans';
-import type { Entitlements, Plan, Subscription } from '../types';
-import { usePrice } from './shared';
+import type { Entitlements, Plan, PlanDisplay, Subscription } from '../types';
+import { usePrice, wordsLanguage } from './shared';
 
 /**
- * The features the backend's plans name, worded here until it sends plan copy per language
- * (FR-110; design PD-212). A key not listed is shown as it came, marked English.
+ * A feature in the backend's words for the language asked (FR-110). One it holds no label for comes
+ * as its key, which is English.
  */
-const KNOWN_FEATURES = [
-  'seating',
-  'check-in',
-  'operations',
-  'vendor-briefs',
-  'thank-yous',
-  'custom-design',
-  'coordinator',
-] as const;
-
-type KnownFeature = (typeof KNOWN_FEATURES)[number];
-
-function isKnownFeature(feature: string): feature is KnownFeature {
-  return (KNOWN_FEATURES as readonly string[]).includes(feature);
-}
-
-function Feature({ feature }: { feature: string }) {
-  const { t } = useTranslation('billing');
-  return isKnownFeature(feature) ? (
-    <li>{t(`features.${feature}`)}</li>
-  ) : (
-    <li lang="en">{feature}</li>
+function Feature({
+  feature,
+  locale,
+}: {
+  feature: PlanDisplay['features'][number];
+  locale: string | null;
+}) {
+  return (
+    <li lang={feature.label === feature.key ? 'en' : wordsLanguage(locale)}>{feature.label}</li>
   );
 }
 
-function Limits({ entitlements }: { entitlements: Entitlements }) {
+function Limits({ entitlements, display }: { entitlements: Entitlements; display: PlanDisplay }) {
   const { t } = useTranslation('billing');
-  const { maxEventsPerPeriod, maxGuestsPerEvent, maxLocales, invitationLifetimeDays, features } =
+  const { maxEventsPerPeriod, maxGuestsPerEvent, maxLocales, invitationLifetimeDays } =
     entitlements;
   return (
     <ul className="m-0 flex list-disc flex-col gap-1 pl-5 text-sm">
@@ -60,8 +47,8 @@ function Limits({ entitlements }: { entitlements: Entitlements }) {
           ? t('limits.lifetimeAny')
           : t('limits.lifetime', { count: invitationLifetimeDays })}
       </li>
-      {features.map((feature) => (
-        <Feature key={feature} feature={feature} />
+      {display.features.map((feature) => (
+        <Feature key={feature.key} feature={feature} locale={display.locale} />
       ))}
     </ul>
   );
@@ -72,19 +59,23 @@ function PlanCard({ plan, action }: { plan: Plan; action: ReactNode }) {
   const nameId = useId();
   return (
     <li aria-labelledby={nameId} className="border-border flex flex-col gap-3 border p-4">
-      <p id={nameId} lang="en" className="m-0 text-lg font-medium break-words">
-        {plan.name}
+      <p
+        id={nameId}
+        lang={wordsLanguage(plan.display.locale)}
+        className="m-0 text-lg font-medium break-words"
+      >
+        {plan.display.name}
       </p>
       <p className="m-0">{price(plan.priceMinor, plan.currency, plan.interval)}</p>
-      <Limits entitlements={plan.entitlements} />
+      <Limits entitlements={plan.entitlements} display={plan.display} />
       {action}
     </li>
   );
 }
 
 /**
- * Each plan with its price and limits, and what can be done with it. A plan's name and features
- * are English sentences the backend holds in no other language (FR-110).
+ * Each plan with its price and limits, and what can be done with it. A plan's name and features are
+ * the backend's, in the language it answered (FR-110).
  */
 export function PlanCards({
   plans,

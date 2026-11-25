@@ -41,6 +41,9 @@ function PayAgain({ invoice, provider }: { invoice: Invoice; provider: PaymentPr
     setIsBusy(true);
     try {
       const made = await choosePlan(browserSession().api, planKey, provider);
+      // No bank page for a paid plan: the backend keeps an attempt whose outcome is unknown.
+      if (made.kind === 'bank' && made.redirectUrl === null)
+        return setRefusal({ kind: 'uncertain' });
       const address = made.kind === 'bank' && bankAddress(made.redirectUrl, window.location.origin);
       if (address) leaveForBank(address);
       else setRefusal({ kind: 'noBank' });

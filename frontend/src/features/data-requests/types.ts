@@ -1,7 +1,8 @@
 import type { ResponseOf } from '@/api/client';
+import type { components } from '@/api/schema';
 
 /** From the schema (FR-1); `read.ts` alone reads the `…Wire` types. */
-export type RequestWire = ResponseOf<'PrivacyController_listResponse'>[number];
+export type RequestWire = components['schemas']['PrivacyRequestRowDto'];
 export type SubmissionsWire = ResponseOf<'PrivacyController_submissionsResponse'>;
 
 export type RequestKind = RequestWire['kind'];

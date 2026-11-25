@@ -1,5 +1,6 @@
 import { expectData, type ApiClient } from '@/api/client';
 import type { components } from '@/api/schema';
+import type { CursorPage } from '@/ui/app-form';
 
 import { readCarried, readRequest, readSubmissions } from './read';
 import type { Carried, DataRequest, RequestStatus, SubmissionsPage } from './types';
@@ -7,15 +8,31 @@ import type { Carried, DataRequest, RequestStatus, SubmissionsPage } from './typ
 /** The public form's submissions a page reads at once (docs/API.md §6, default 20). */
 const SUBMISSIONS_PAGE = 20;
 
+/** Which part of the queue a read asks for (docs/API.md §6). */
+export interface RequestQuery {
+  queue: 'OPEN' | 'CLOSED';
+  /** Narrows the queue; a status of the other queue is refused. */
+  status?: RequestStatus;
+}
+
+/** A page the backend's default size. */
+const PAGE_SIZE = 50;
+
 /**
- * One status, soonest due, at most 200 (FR-127). `ADMIN` only (`privacy:manage`). The schema doesn't
- * declare the query, though the route reads it (FR-127).
+ * A page of the queue, in the backend's order: open ones soonest due first, closed ones newest
+ * completed first (FR-127). `ADMIN` only (`privacy:manage`).
  */
-export async function listRequests(api: ApiClient, status: RequestStatus): Promise<DataRequest[]> {
-  const rows = await expectData(
-    api.GET('/api/v1/privacy/requests', { params: { query: { status } as never } }),
+export async function listRequests(
+  api: ApiClient,
+  query: RequestQuery,
+  cursor?: string,
+): Promise<CursorPage<DataRequest>> {
+  const page = await expectData(
+    api.GET('/api/v1/privacy/requests/page', {
+      params: { query: { ...query, limit: PAGE_SIZE, ...(cursor ? { cursor } : {}) } },
+    }),
   );
-  return rows.map(readRequest);
+  return { items: page.items.map(readRequest), nextCursor: page.nextCursor };
 }
 
 /** What the public form said for this request, oldest first: unverified, never evidence (FR-126). */

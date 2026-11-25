@@ -58,7 +58,8 @@
     "staffCustomers": "Customers · Aveline",
     "staffDataRequests": "Data requests · Aveline",
     "staffAccessReviews": "Access reviews · Aveline",
-    "staffAccounts": "Staff accounts · Aveline"
+    "staffAccounts": "Staff accounts · Aveline",
+    "staffPilot": "Pilot totals · Aveline"
   },
   "shell": {
     "loading": "Loading…",

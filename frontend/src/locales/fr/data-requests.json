@@ -2,7 +2,8 @@
   "title": "Demandes sur les données",
   "back": "Retour aux outils",
   "lead": "Des personnes demandent ce qui est conservé à leur sujet, ou sa correction ou son effacement. Les échéances les plus proches d’abord. Les dates sont à l’heure d’Erevan.",
-  "limit": "Chaque statut en affiche 200 au maximum, les échéances les plus proches d’abord.",
+  "more": "Afficher d’autres demandes",
+  "moreFailed": "La suite n’a pas pu être chargée. Veuillez réessayer.",
   "none": "Rien n’est en attente.",
   "noAddress": "Issue d’une prise de contact : pas d’adresse",
   "overdue": "En retard",
@@ -106,7 +107,6 @@
     "newerExport": "Un export plus récent a été fait entre-temps. La page a été relue : confirmez la remise de celui-là une fois envoyé."
   },
   "noAddressHelp": "Cette demande vient d’une prise de contact : elle ne peut pas encore être exécutée sur cette page. Il lui faut la fiche de la prise de contact.",
-  "limitClosed": "Cette liste en affiche 200 au maximum, les échéances les plus proches d’abord : les plus récentes peuvent manquer.",
   "noneClosed": "Aucune ici.",
   "noAddressWho": "l’auteur de cette prise de contact",
   "deliver": {

@@ -114,6 +114,7 @@
     "fields": "Certaines informations ont été refusées. Elles sont signalées ci-dessus.",
     "rateLimited": "Trop d’essais en peu de temps. Attendez une minute, puis appuyez à nouveau.",
     "noAnswer": "Nous n’avons pas reçu de réponse. Appuyez à nouveau : votre commande ne sera pas passée deux fois.",
+    "uncertain": "Nous ne savons pas encore si votre banque a commencé ce paiement ; notre équipe doit le vérifier. Ne passez pas une seconde commande : contactez-nous avec la référence ci-dessous.",
     "other": "La commande a été refusée, pour cette raison :",
     "reference": "Référence : {{requestId}}",
     "promo": "{{reason}} Retirez le code, ou essayez-en un autre.",

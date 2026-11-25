@@ -2,6 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router';
 
 import { problemFrom, type Problem } from '@/api/problems';
 import { browserSession } from '@/api/session';
@@ -17,6 +18,7 @@ import {
 } from '../schemas';
 import { useFieldText } from '../use-field-text';
 import { isAddressRefused } from '../address-refused';
+import { safeNext } from '../safe-next';
 import { useLinkToken } from '../use-link-token';
 import { AccountLayout } from './account-layout';
 import { AccountLink } from './account-link';
@@ -89,14 +91,15 @@ function RequestLink() {
 }
 
 /**
- * A reset ends every session of the account (docs/API.md §2), this browser's included, so the
- * local session is cleared and the other tabs are told.
+ * A reset ends every session of the account and answers with a new one (docs/API.md §2, FR-160),
+ * which this tab starts as a sign-in does. Nothing is announced to the other tabs: signing out would
+ * have them drop the stored refresh token, the new one included; they read the new one instead.
  */
 function ChooseNewPassword({ token }: { token: string }) {
   const { t } = useTranslation('account');
   const fieldText = useFieldText();
   const [problem, setProblem] = useState<Problem | null>(null);
-  const [isDone, setIsDone] = useState(false);
+  const navigate = useNavigate();
   const form = useForm<NewPasswordValues>({
     resolver: zodResolver(newPasswordSchema),
     defaultValues: { password: '' },
@@ -107,17 +110,13 @@ function ChooseNewPassword({ token }: { token: string }) {
     setProblem(null);
     try {
       const session = browserSession();
-      await confirmPasswordReset(session.publicApi, { token, password });
-      await session.signOut();
-      setIsDone(true);
+      session.start(await confirmPasswordReset(session.publicApi, { token, password }));
+      await navigate(safeNext(null));
     } catch (error) {
       setProblem(problemFrom(error));
     }
   };
 
-  if (isDone) {
-    return <Done title={t('resetPassword.done.title')} body={t('resetPassword.done.body')} />;
-  }
   return (
     <AccountLayout title={t('resetPassword.choose.title')} lead={t('resetPassword.choose.lead')}>
       {problem ? (

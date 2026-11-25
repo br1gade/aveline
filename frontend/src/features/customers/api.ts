@@ -2,28 +2,41 @@ import { expectData, type ApiClient } from '@/api/client';
 import { readEveryPage, type EveryPage } from '@/api/every-page';
 import type { components } from '@/api/schema';
 import type { EventDetail } from '@/features/events';
+import type { CursorPage } from '@/ui/app-form';
 
 import type { CustomerChoice, CustomerOrganization, OpenedAccount } from './types';
 
 type Schemas = components['schemas'];
 
-/** Newest 50, by name; staff only (`concierge:manage`). */
+/** A page the backend's default size (docs/API.md §6). */
+const PAGE_SIZE = 50;
+
+/**
+ * Open organizations, newest first, by name; staff only (`concierge:manage`). The next page needs the
+ * same search with the cursor (FR-127).
+ */
 export async function findOrganizations(
   api: ApiClient,
   search: string | null,
-): Promise<CustomerOrganization[]> {
-  const found = await expectData(
-    api.GET('/api/v1/concierge/organizations', {
-      params: { query: search ? { search } : {} },
+  cursor?: string,
+): Promise<CursorPage<CustomerOrganization>> {
+  const page = await expectData(
+    api.GET('/api/v1/concierge/organizations/page', {
+      params: {
+        query: { limit: PAGE_SIZE, ...(search ? { search } : {}), ...(cursor ? { cursor } : {}) },
+      },
     }),
   );
-  return found.map(({ id, name, events, owners, pendingOwnerInvites }) => ({
-    id,
-    name,
-    events,
-    owners,
-    pendingOwnerInvites,
-  }));
+  return {
+    items: page.items.map(({ id, name, events, owners, pendingOwnerInvites }) => ({
+      id,
+      name,
+      events,
+      owners,
+      pendingOwnerInvites,
+    })),
+    nextCursor: page.nextCursor,
+  };
 }
 
 /**

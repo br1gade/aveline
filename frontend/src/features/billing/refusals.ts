@@ -1,5 +1,5 @@
 import { isApiError, type ApiError } from '@/api/errors';
-import { PAYMENT_DISAGREEMENT } from '@/api/payment-disagreement';
+import { isPaymentUncertain, PAYMENT_DISAGREEMENT } from '@/api/payment-disagreement';
 import { isOrganizationRefusal } from '@/api/session';
 
 type WordedKind =
@@ -15,6 +15,7 @@ type WordedKind =
   | 'noInvoice'
   | 'noPayment'
   | 'disagreement'
+  | 'uncertain'
   | 'refunding'
   | 'rateLimited';
 
@@ -47,7 +48,9 @@ const STALE: ReadonlySet<WordedKind> = new Set([
 ]);
 
 /** Whatever a status or a code decides, before the sentences are read. */
-function bySignal({ status, requestId, code }: ApiError): BillingRefusal | null {
+function bySignal(error: ApiError): BillingRefusal | null {
+  const { status, requestId, code } = error;
+  if (isPaymentUncertain(error)) return { kind: 'uncertain', requestId };
   if (status === 0 || status >= 500) return { kind: 'noAnswer', requestId };
   if (isOrganizationRefusal(code)) return { kind: 'chooseOrganization' };
   if (code === 'ORGANIZATION_ACCESS_DENIED') return { kind: 'noOrganization' };

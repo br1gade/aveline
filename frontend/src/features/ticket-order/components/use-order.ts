@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { createPublicApi, type PublicApiClient } from '@/api/client';
 import { isApiError } from '@/api/errors';
-import { isPaymentDisagreement } from '@/api/payment-disagreement';
+import { isPaymentDisagreement, isPaymentUncertain } from '@/api/payment-disagreement';
 import { readPublicEnv } from '@/config/env';
 import { pollUntil, waitFor } from '@/lib/poll';
 import { useIsHydrated } from '@/ui';
@@ -23,6 +23,8 @@ export type OrderState =
   | { kind: 'failed'; requestId?: string | undefined }
   /** The bank and our record disagree: contact support, and never pay again (docs/API.md §6). */
   | { kind: 'disagreement'; requestId: string | undefined }
+  /** Only staff can settle this payment's outcome: the same, contact support (docs/API.md §6). */
+  | { kind: 'uncertain'; requestId: string | undefined }
   /** `isKept`: no answer came, so this is the order as this tab last read it (design PD-202). */
   | { kind: 'ready'; read: OrderRead; isKept?: boolean };
 
@@ -30,13 +32,14 @@ export type OrderState =
 const RECHECKS = [2_000, 3_000, 5_000] as const;
 
 function failure(error: unknown): OrderState {
-  const kept = isApiError(error) && error.status === 0 ? orderSnapshot.read() : null;
+  if (!isApiError(error)) return { kind: 'failed' };
+  const kept = error.status === 0 ? orderSnapshot.read() : null;
   if (kept) return { kind: 'ready', read: kept, isKept: true };
-  if (isApiError(error) && error.status === 404) return { kind: 'gone' };
-  if (isApiError(error) && isPaymentDisagreement(error)) {
-    return { kind: 'disagreement', requestId: error.requestId };
-  }
-  return { kind: 'failed', requestId: isApiError(error) ? error.requestId : undefined };
+  if (error.status === 404) return { kind: 'gone' };
+  const { requestId } = error;
+  if (isPaymentDisagreement(error)) return { kind: 'disagreement', requestId };
+  if (isPaymentUncertain(error)) return { kind: 'uncertain', requestId };
+  return { kind: 'failed', requestId };
 }
 
 function usePublicApi() {

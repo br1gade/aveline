@@ -58,7 +58,8 @@
     "staffCustomers": "Клиенты · Aveline",
     "staffDataRequests": "Запросы о данных · Aveline",
     "staffAccessReviews": "Проверки доступа · Aveline",
-    "staffAccounts": "Учётные записи сотрудников · Aveline"
+    "staffAccounts": "Учётные записи сотрудников · Aveline",
+    "staffPilot": "Итоги пилота · Aveline"
   },
   "shell": {
     "loading": "Загрузка…",

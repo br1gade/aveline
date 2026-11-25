@@ -12,7 +12,7 @@ import { NativeSelectOption } from '@/ui/kit/native-select';
 import { resolveReview } from '../api';
 import { reviewRefusalOf } from '../refusals';
 import type { AccessReview, ReviewDecision } from '../types';
-import { ReviewProblem, type Who } from './shared';
+import { ReviewProblem } from './shared';
 
 /** Four pages of fifty: past that, the page says the list stopped early. */
 const MEMBER_PAGES = 4;
@@ -76,24 +76,13 @@ function SuccessorField({
   );
 }
 
-/**
- * Typing the name, or the reference when the name couldn't be read, as nothing reopens a closed
- * organization: beyond the question every step asks.
- */
-function TypeTheName({
-  isNamed,
-  value,
-  onChange,
-}: {
-  isNamed: boolean;
-  value: string;
-  onChange: (typed: string) => void;
-}) {
+/** Typing the name, as nothing reopens a closed organization: beyond the question every step asks. */
+function TypeTheName({ value, onChange }: { value: string; onChange: (typed: string) => void }) {
   const { t } = useTranslation('access-reviews');
   const id = useId();
   return (
     <div className="flex flex-col gap-2">
-      <Label htmlFor={id}>{t(isNamed ? 'close.typeLabel' : 'close.typeReference')}</Label>
+      <Label htmlFor={id}>{t('close.typeLabel')}</Label>
       <Input
         id={id}
         autoComplete="off"
@@ -110,8 +99,6 @@ const sameName = (typed: string, name: string) =>
 
 interface DecisionDialogProps extends DialogContext {
   review: AccessReview;
-  /** The organization's name, or its reference when the name couldn't be read. */
-  who: Who;
   decision: ReviewDecision;
 }
 
@@ -119,7 +106,8 @@ interface DecisionDialogProps extends DialogContext {
  * Resolving a review (design PD-176): handing it to a member, closing it, or leaving it as it is. Each
  * asks first; closing also asks for the name, as it can't be undone.
  */
-export function DecisionDialog({ review, who, decision, ...context }: DecisionDialogProps) {
+export function DecisionDialog({ review, decision, ...context }: DecisionDialogProps) {
+  const { name } = review.organization;
   const { t } = useTranslation('access-reviews');
   const [typed, setTyped] = useState('');
   const [successorUserId, setSuccessorUserId] = useState('');
@@ -129,7 +117,7 @@ export function DecisionDialog({ review, who, decision, ...context }: DecisionDi
   );
   const isConfirmable =
     (decision !== 'HANDOVER' || successorUserId !== '') &&
-    (decision !== 'CLOSE' || sameName(typed, who.text));
+    (decision !== 'CLOSE' || sameName(typed, name));
   const resolve = () =>
     resolveReview(browserSession().api, review.id, {
       decision,
@@ -140,13 +128,13 @@ export function DecisionDialog({ review, who, decision, ...context }: DecisionDi
     <AskFirstDialog
       onOpenChange={onOpenChange}
       onCloseAutoFocus={onCloseAutoFocus}
-      title={t(`ask.${decision}.title`, { name: who.text })}
+      title={t(`ask.${decision}.title`, { name })}
       body={t(`ask.${decision}.body`)}
       confirmLabel={t(`decision.${decision}`)}
       isBusy={isBusy}
       problem={refusal ? <ReviewProblem refusal={refusal} /> : null}
       isConfirmable={isConfirmable}
-      onConfirm={() => void run(resolve, t(`status.${decision}`, { name: who.text }))}
+      onConfirm={() => void run(resolve, t(`status.${decision}`, { name }))}
     >
       {decision === 'HANDOVER' ? (
         <SuccessorField
@@ -155,9 +143,7 @@ export function DecisionDialog({ review, who, decision, ...context }: DecisionDi
           onChange={setSuccessorUserId}
         />
       ) : null}
-      {decision === 'CLOSE' ? (
-        <TypeTheName isNamed={who.isNamed} value={typed} onChange={setTyped} />
-      ) : null}
+      {decision === 'CLOSE' ? <TypeTheName value={typed} onChange={setTyped} /> : null}
     </AskFirstDialog>
   );
 }

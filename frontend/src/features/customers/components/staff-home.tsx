@@ -29,11 +29,17 @@ export function StaffHome({ access, isAdmin }: { access: Loaded<unknown>; isAdmi
             <Link to={APP_PATHS.staffAccessReviews} className={LINK}>
               {t('home.accessReviews')}
             </Link>
-            {/* Only an administrator manages the staff; support would find the page refused. */}
+            {/* Only an administrator manages the staff and reads the pilot's totals; support would
+                find both pages refused. */}
             {isAdmin ? (
-              <Link to={APP_PATHS.staffAccounts} className={LINK}>
-                {t('home.staffAccounts')}
-              </Link>
+              <>
+                <Link to={APP_PATHS.staffAccounts} className={LINK}>
+                  {t('home.staffAccounts')}
+                </Link>
+                <Link to={APP_PATHS.staffPilot} className={LINK}>
+                  {t('home.pilotStats')}
+                </Link>
+              </>
             ) : null}
           </nav>
         </>

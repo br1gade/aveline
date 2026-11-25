@@ -14,6 +14,7 @@ import exports from '../hy/exports.json';
 import followUps from '../hy/follow-ups.json';
 import guests from '../hy/guests.json';
 import organization from '../hy/organization.json';
+import pilotStats from '../hy/pilot-stats.json';
 import promoCodes from '../hy/promo-codes.json';
 import recordedAnswer from '../hy/recorded-answer.json';
 import runningOrder from '../hy/running-order.json';
@@ -44,6 +45,7 @@ export default {
   'follow-ups': followUps,
   guests,
   organization,
+  'pilot-stats': pilotStats,
   'promo-codes': promoCodes,
   'recorded-answer': recordedAnswer,
   'running-order': runningOrder,

@@ -4,10 +4,12 @@ import { Link, useSearchParams } from 'react-router';
 
 import { LoadedProblem } from '@/features/sending';
 import { APP_PATHS } from '@/route-paths';
-import { WRAPPING_BUTTON } from '@/ui/app-form';
+import { browserSession } from '@/api/session';
+import { MoreButton, useMoreByCursor, WRAPPING_BUTTON, type CursorPage } from '@/ui/app-form';
 import { Button } from '@/ui/kit/button';
 import { Input } from '@/ui/kit/input';
 
+import { findOrganizations } from '../api';
 import type { CustomersData } from '../load';
 import type { CustomerOrganization } from '../types';
 import { LINK, SetUpEventLink } from './customer-new-event';
@@ -71,16 +73,29 @@ function Search({ query }: { query: string }) {
   );
 }
 
-function Results({ organizations }: { organizations: CustomerOrganization[] }) {
+/** The first page, and the next ones by the cursor under the same search (FR-127). */
+function Results({ first, query }: { first: CursorPage<CustomerOrganization>; query: string }) {
   const { t } = useTranslation('customers');
+  const { items, hasMore, isLoading, error, more } = useMoreByCursor(first, (cursor) =>
+    findOrganizations(browserSession().api, query || null, cursor),
+  );
   return (
     <>
-      {organizations.length === 0 ? <p className="m-0">{t('list.none')}</p> : null}
+      {items.length === 0 ? <p className="m-0">{t('list.none')}</p> : null}
       <ul className="m-0 flex list-none flex-col gap-3 p-0">
-        {organizations.map((organization) => (
+        {items.map((organization) => (
           <Row key={organization.id} organization={organization} />
         ))}
       </ul>
+      {hasMore ? (
+        <MoreButton
+          label={t('list.more')}
+          failed={t('list.moreFailed')}
+          isLoading={isLoading}
+          hasFailed={error !== null}
+          onPress={more}
+        />
+      ) : null}
     </>
   );
 }
@@ -106,9 +121,8 @@ export function CustomersPage({ data }: { data: CustomersData }) {
           <section className="flex max-w-[40rem] flex-col gap-3">
             <h2 className="m-0 text-lg font-medium">{t('list.title')}</h2>
             <Search key={query} query={query} />
-            <p className="text-muted-foreground m-0 text-sm">{t('list.limit')}</p>
             {organizations.kind === 'ready' ? (
-              <Results organizations={organizations.value} />
+              <Results first={organizations.value} query={query} />
             ) : (
               <LoadedProblem loaded={organizations} refusedText={t('refusal.forbidden')} />
             )}

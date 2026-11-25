@@ -60,9 +60,11 @@ test.describe('an account', () => {
     await expect(page).toHaveURL(/\/reset-password$/u);
     await page.getByLabel('New password').fill('another long password');
     await page.getByRole('button', { name: 'Save the new password' }).click();
-    await expect(page.getByRole('heading', { name: 'Password changed' })).toBeVisible();
+    // A confirmed reset signs the owner in (FR-160).
+    await expect(page.getByRole('heading', { name: 'Your events' })).toBeVisible();
 
-    await page.goto('/sign-in');
+    await page.getByRole('button', { name: 'Sign out', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
     await page.getByLabel('Email').fill(host.email);
     await page.getByLabel('Password').fill('another long password');
     await page.getByRole('button', { name: 'Sign in' }).click();

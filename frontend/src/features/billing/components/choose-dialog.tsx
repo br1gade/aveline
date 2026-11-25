@@ -22,9 +22,12 @@ export interface Choice {
 }
 
 const NO_BANK_PAGE = new Error('no bank page');
+/** A paid choice answered with no bank page: an earlier payment's outcome is still unknown. */
+const PAYMENT_UNSETTLED = new Error('payment unsettled');
 
 function refusalOf(error: unknown): BillingRefusal {
-  return error === NO_BANK_PAGE ? { kind: 'noBank' } : billingRefusalOf(error);
+  if (error === NO_BANK_PAGE) return { kind: 'noBank' };
+  return error === PAYMENT_UNSETTLED ? { kind: 'uncertain' } : billingRefusalOf(error);
 }
 
 interface ChooseDialogProps extends DialogContext {
@@ -56,6 +59,7 @@ export function ChooseDialog({ choice, onPilot, ...context }: ChooseDialogProps)
       async () => {
         made = await choosePlan(browserSession().api, choice.planKey, choice.provider);
         if (made.kind !== 'bank') return;
+        if (made.redirectUrl === null) throw PAYMENT_UNSETTLED;
         const address = bankAddress(made.redirectUrl, window.location.origin);
         if (!address) throw NO_BANK_PAGE;
         leaveForBank(address);

@@ -20,9 +20,11 @@ export function visitorAddress(incoming: Request): string | undefined {
  * The public API, read at its internal address for a page this server renders, passing on whose
  * page it is. Without the address every visitor counts against this server's one allowance per
  * route (docs/GOING_LIVE.md 13c); the API trusts exactly one hop, which is this server or Caddy.
+ * `language`, when given, is the page's, asked for as `Accept-Language` (the price list, FR-110).
  */
-export function createVisitorApi(incoming: Request): PublicApiClient {
+export function createVisitorApi(incoming: Request, language?: string): PublicApiClient {
   return createPublicApi(readServerEnv().API_INTERNAL_URL, {
     forwardedFor: visitorAddress(incoming),
+    ...(language ? { getLanguage: () => language } : {}),
   });
 }

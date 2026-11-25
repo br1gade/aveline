@@ -32,8 +32,15 @@ const managed: Plan = {
     invitationLifetimeDays: null,
     features: ['seating'],
   },
+  display: { locale: 'en', name: 'Managed', features: [{ key: 'seating', label: 'Seating' }] },
 };
-const free: Plan = { ...managed, key: 'free', name: 'Free tier', priceMinor: '0' };
+const free: Plan = {
+  ...managed,
+  key: 'free',
+  name: 'Free tier',
+  priceMinor: '0',
+  display: { ...managed.display, name: 'Free tier' },
+};
 
 beforeAll(() => server.listen({ onUnhandledFrame: 'error' }));
 beforeEach(() => vi.stubEnv('API_INTERNAL_URL', ORIGIN));
@@ -60,15 +67,19 @@ function show(plans: Plan[], language: Language = 'en', payment = PAYMENTS_ON) {
 describe('the price list', () => {
   it('is read on the server without anyone signed in, keeping prices as strings', async () => {
     let authorization: string | null = 'unread';
+    let language: string | null = null;
     server.use(
       http.get(`${ORIGIN}/api/v1/plans`, ({ request }) => {
         authorization = request.headers.get('authorization');
+        language = request.headers.get('accept-language');
         return HttpResponse.json([{ ...managed, extra: 'dropped' }]);
       }),
       http.get(`${ORIGIN}/api/v1/payment-options`, () => HttpResponse.json(PAYMENTS_OFF)),
     );
-    const { plans, payment } = await loadPricing(new Request('https://aveline.test/pricing'));
+    const { plans, payment } = await loadPricing(new Request('https://aveline.test/pricing'), 'ru');
     expect(authorization).toBeNull();
+    // The plans' words come in the page's language (FR-110).
+    expect(language).toBe('ru');
     expect(plans).toEqual([managed]);
     expect(payment).toEqual(PAYMENTS_OFF);
     expect(typeof plans[0]?.priceMinor).toBe('string');
@@ -114,32 +125,30 @@ describe('the price list', () => {
     );
   });
 
-  it('words a known feature in the page’s language (PD-212)', () => {
-    show([managed], 'hy');
-    expect(screen.getByText('Նստատեղերի պլան')).not.toHaveAttribute('lang');
+  it('shows the plan’s name and features in the language the backend answered (FR-110)', () => {
+    const armenian = {
+      locale: 'hy',
+      name: 'Կազմակերպիչով',
+      features: [{ key: 'seating', label: 'Նստատեղեր' }],
+    };
+    show([{ ...managed, display: armenian }], 'hy');
+    expect(screen.getByText('Կազմակերպիչով')).toHaveAttribute('lang', 'hy');
+    expect(screen.getByText('Նստատեղեր')).toHaveAttribute('lang', 'hy');
+    expect(screen.queryByText('seating')).toBeNull();
   });
 
-  // The names the backend's plans use (`backend/src/seed-production.ts`), written out here so a
-  // name the client stops wording shows up as a failure, not as raw English on the price list.
-  it.each([
-    'seating',
-    'check-in',
-    'operations',
-    'vendor-briefs',
-    'thank-yous',
-    'custom-design',
-    'coordinator',
-  ])('words the backend’s feature %s rather than showing its key', (feature) => {
-    show([{ ...managed, entitlements: { ...managed.entitlements, features: [feature] } }], 'hy');
-    expect(screen.queryByText(feature)).toBeNull();
-  });
-
-  it('marks the plan’s English words as English on a page in Armenian', () => {
-    show(
-      [{ ...managed, entitlements: { ...managed.entitlements, features: ['live-stream'] } }],
-      'hy',
-    );
+  it('marks a plan the backend holds no translation for, and a feature it can’t word, as English', () => {
+    const untranslated = {
+      locale: null,
+      name: 'Managed',
+      features: [
+        { key: 'seating', label: 'Seating' },
+        { key: 'live-stream', label: 'live-stream' },
+      ],
+    };
+    show([{ ...managed, display: untranslated }], 'hy');
     expect(screen.getByText('Managed')).toHaveAttribute('lang', 'en');
+    expect(screen.getByText('Seating')).toHaveAttribute('lang', 'en');
     expect(screen.getByText('live-stream')).toHaveAttribute('lang', 'en');
   });
 

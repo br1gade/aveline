@@ -1,0 +1,16 @@
+{
+  "back": "Retour aux pages du personnel",
+  "title": "Bilan du pilote",
+  "lead": "Pour tous les clients, compté à l’ouverture de cette page. Les organisations détenues par le personnel d’Aveline, comme les répétitions, sont exclues.",
+  "refused": "Seuls les administrateurs d’Aveline voient le bilan du pilote.",
+  "count": "{{count, number}}",
+  "share": "{{share, number(style: percent)}}",
+  "hosts": "Hôtes ayant créé un événement",
+  "invitationsSent": "Invitations envoyées",
+  "invitationsSentAbout": "Acceptées ou remises, sur tout canal. Celles en attente, en échec ou renvoyées ne sont pas comptées.",
+  "replied": "Invités ayant répondu",
+  "repliedOf": "{{part, number}} sur {{whole, number}} invités",
+  "checkedIn": "Invités attendus enregistrés",
+  "checkedInOf": "{{part, number}} sur {{whole, number}} ayant dit venir",
+  "checkedInAbout": "Cela peut dépasser 100 %, car l’entrée admet des invités qui n’ont jamais dit oui."
+}

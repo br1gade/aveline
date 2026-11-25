@@ -5,7 +5,8 @@
     "customers": "Customers",
     "dataRequests": "Data requests",
     "accessReviews": "Access reviews",
-    "staffAccounts": "Staff accounts"
+    "staffAccounts": "Staff accounts",
+    "pilotStats": "Pilot totals"
   },
   "title": "Customers",
   "back": "Back to staff tools",
@@ -13,7 +14,8 @@
     "title": "Find a customer",
     "searchLabel": "Organization’s name, or part of it",
     "search": "Search",
-    "limit": "The newest 50 are shown.",
+    "more": "Show more organizations",
+    "moreFailed": "More couldn’t be loaded. Please try again.",
     "none": "No organizations found.",
     "owners": "Owners: {{addresses}}",
     "invited": "Invited, yet to accept: {{addresses}}",

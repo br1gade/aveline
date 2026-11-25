@@ -12,6 +12,16 @@ export interface Entitlements {
   features: string[];
 }
 
+/**
+ * A plan's words in the language the backend answered (FR-110): `locale: null` when it holds no
+ * translation, so `name` is the plan's own name. A feature's `key` decides; its `label` is shown.
+ */
+export interface PlanDisplay {
+  locale: string | null;
+  name: string;
+  features: Array<{ key: string; label: string }>;
+}
+
 export interface Plan {
   key: string;
   name: string;
@@ -20,6 +30,7 @@ export interface Plan {
   currency: string;
   interval: string;
   entitlements: Entitlements;
+  display: PlanDisplay;
 }
 
 /** A move to a free plan once the paid period ends, which can still be withdrawn (FR-135). */
@@ -30,7 +41,7 @@ export interface PendingFree {
 
 export interface Subscription {
   status: string;
-  plan: Pick<Plan, 'key' | 'name' | 'priceMinor' | 'currency' | 'interval'>;
+  plan: Pick<Plan, 'key' | 'name' | 'priceMinor' | 'currency' | 'interval' | 'display'>;
   currentPeriodEnd: string;
   cancelAtPeriodEnd: boolean;
   pendingFree: PendingFree | null;
@@ -40,8 +51,10 @@ export interface InvoiceLine {
   description: string;
   quantity: number;
   totalMinor: string;
-  /** Not in docs/API.md; the backend stores it on every plan invoice (FR-110). */
+  /** On every plan invoice's line (docs/API.md §6, FR-110). */
   planKey: string | null;
+  /** The line in the language asked for; absent from a line older than translations (FR-110). */
+  display: { locale: string | null; description: string } | null;
 }
 
 export interface Invoice {

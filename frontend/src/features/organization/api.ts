@@ -20,13 +20,8 @@ function naming(organizationId: string | undefined) {
 }
 
 /** Any member may read this (`event:read`), so it gives the revision that leaving needs. */
-export async function getCurrentOrganization(
-  api: ApiClient,
-  organizationId?: string,
-): Promise<CurrentOrganization> {
-  return readCurrent(
-    await expectData(api.GET('/api/v1/organizations/current', naming(organizationId))),
-  );
+export async function getCurrentOrganization(api: ApiClient): Promise<CurrentOrganization> {
+  return readCurrent(await expectData(api.GET('/api/v1/organizations/current')));
 }
 
 export async function renameOrganization(api: ApiClient, name: string): Promise<void> {

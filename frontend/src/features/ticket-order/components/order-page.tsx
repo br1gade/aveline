@@ -24,11 +24,11 @@ function Problem({
         {t('loading')}
       </p>
     );
-  if (state.kind === 'disagreement') {
+  if (state.kind === 'disagreement' || state.kind === 'uncertain') {
     // Never "try again" or "pay again": the same answer would come, and the money may be taken.
     return (
       <Notice tone="error" role="alert">
-        <p>{t('disagreement.body')}</p>
+        <p>{t(`${state.kind}.body`)}</p>
         {state.requestId ? <p>{t('failed.reference', { requestId: state.requestId })}</p> : null}
         <SupportContacts linkClassName="text-action underline decoration-1 underline-offset-3" />
       </Notice>

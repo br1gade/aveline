@@ -2,6 +2,8 @@
 export interface AccessReview {
   id: string;
   organizationId: string;
+  /** Named on the review itself (FR-133). */
+  organization: { name: string; kind: string };
   /** `LAST_OWNER_CLOSURE` or `INACTIVE_OWNER_RECOVERY`; another is shown as it came. */
   reason: string;
   openedAt: string;

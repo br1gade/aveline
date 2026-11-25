@@ -2,7 +2,8 @@
   "title": "Data requests",
   "back": "Back to staff tools",
   "lead": "People asking what is held about them, or for it to be corrected or erased. Soonest due first. Dates are in Yerevan time.",
-  "limit": "Each status shows at most 200, soonest due first.",
+  "more": "Show more requests",
+  "moreFailed": "More couldn’t be loaded. Please try again.",
   "none": "Nothing is waiting.",
   "noAddress": "From an enquiry: no address",
   "overdue": "Overdue",
@@ -106,7 +107,6 @@
     "newerExport": "A newer export was made meanwhile. The page has been read again: confirm the delivery of that one once it is sent."
   },
   "noAddressHelp": "This came from an enquiry, so it can’t be carried out on this page yet. It needs the enquiry’s record.",
-  "limitClosed": "This shows at most 200, soonest due first, so the newest may be missing.",
   "noneClosed": "None here.",
   "noAddressWho": "this enquiry’s requester",
   "deliver": {

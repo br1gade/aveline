@@ -58,7 +58,8 @@
     "staffCustomers": "Հաճախորդներ · Aveline",
     "staffDataRequests": "Տվյալների հարցումներ · Aveline",
     "staffAccessReviews": "Մուտքի ստուգումներ · Aveline",
-    "staffAccounts": "Աշխատակազմի հաշիվներ · Aveline"
+    "staffAccounts": "Աշխատակազմի հաշիվներ · Aveline",
+    "staffPilot": "Փորձնական շրջանի ամփոփում · Aveline"
   },
   "shell": {
     "loading": "Բեռնվում է…",

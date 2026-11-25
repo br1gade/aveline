@@ -91,6 +91,8 @@
     "scheduled": "{{name}} commence à la fin de votre période payée. D’ici là, rien ne change."
   },
   "invoices": {
+    "more": "Afficher d’autres factures",
+    "moreFailed": "La suite n’a pas pu être chargée. Veuillez réessayer.",
     "title": "Factures",
     "zone": "Les dates sont à l’heure d’Erevan. Ouvrez une facture pour voir à quoi elle correspond.",
     "none": "Aucune facture pour l’instant.",
@@ -121,6 +123,7 @@
     "noInvoice": "Nous n’avons pas trouvé cette facture dans votre organisation.",
     "noPayment": "Cette facture n’a pas encore de paiement à vérifier.",
     "disagreement": "La banque et notre enregistrement de ce paiement ne concordent pas.",
+    "uncertain": "Nous ne savons pas encore comment ce paiement s’est terminé ; notre équipe doit le vérifier. Ne payez pas une seconde fois : contactez-nous, et nous réglerons cela.",
     "rateLimited": "Trop de demandes pour le moment. Attendez une minute, puis réessayez.",
     "noAnswer": "Nous n’avons pas reçu de réponse. Vérifiez votre connexion et réessayez.",
     "other": "Cela n’a pas pu être fait.",
@@ -148,14 +151,5 @@
     "lead": "Ce que coûte chaque formule Aveline et ce qu’elle comprend.",
     "start": "Créer un compte",
     "metaTitle": "Tarifs · Aveline"
-  },
-  "features": {
-    "seating": "Plan de table",
-    "check-in": "Accueil à l’entrée",
-    "operations": "Déroulé et organisation du jour",
-    "vendor-briefs": "Briefs pour les prestataires",
-    "thank-yous": "Messages de remerciement",
-    "custom-design": "Un design sur mesure",
-    "coordinator": "Un coordinateur"
   }
 }

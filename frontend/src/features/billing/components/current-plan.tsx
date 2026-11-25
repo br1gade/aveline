@@ -17,7 +17,7 @@ import type { BillingData } from '../load';
 import { standing } from '../plans';
 import { billingRefusalOf, type BillingRefusal } from '../refusals';
 import type { Subscription } from '../types';
-import { BillingProblem, useBillingDay, usePrice } from './shared';
+import { BillingProblem, useBillingDay, usePrice, wordsLanguage } from './shared';
 
 export function CancelDialog({
   subscription,
@@ -91,8 +91,8 @@ function HeldPlan({ subscription, now, page, onCancel }: HeldPlanProps) {
   const pending = subscription.pendingFree;
   return (
     <div className="border-border flex flex-col gap-3 border p-4">
-      <p lang="en" className="m-0 text-lg font-medium break-words">
-        {plan.name}
+      <p lang={wordsLanguage(plan.display.locale)} className="m-0 text-lg font-medium break-words">
+        {plan.display.name}
       </p>
       <p className="m-0">{price(plan.priceMinor, plan.currency, plan.interval)}</p>
       <p className="m-0">{t(`standing.${state}`, { date: day(currentPeriodEnd) })}</p>

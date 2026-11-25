@@ -1,4 +1,5 @@
 import { isApiError, type ApiError } from '@/api/errors';
+import { isPaymentUncertain } from '@/api/payment-disagreement';
 
 /**
  * Why checkout refused an order, and so what the page offers (design PD-80). The backend gives
@@ -31,6 +32,8 @@ export type CheckoutRefusal =
   | { kind: 'fields'; paths: string[] }
   | { kind: 'rateLimited' }
   | { kind: 'noAnswer'; requestId?: string | undefined }
+  /** Only staff can settle the payment: keep the order and contact support (docs/API.md §6). */
+  | { kind: 'uncertain'; requestId?: string | undefined }
   | { kind: 'other'; sentence: string; requestId?: string | undefined };
 
 type Simple = Extract<
@@ -112,6 +115,7 @@ function isKeyConflict(error: ApiError): boolean {
 }
 
 function byStatus(error: ApiError): CheckoutRefusal | null {
+  if (isPaymentUncertain(error)) return { kind: 'uncertain', requestId: error.requestId };
   if (error.status === 0 || error.status >= 500) {
     return { kind: 'noAnswer', requestId: error.requestId };
   }

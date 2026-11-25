@@ -35,13 +35,21 @@ function plan(key: string, priceMinor: string): Plan {
       invitationLifetimeDays: null,
       features: [],
     },
+    display: { locale: null, name: key, features: [] },
   };
 }
 
 function subscription(overrides: Partial<Subscription> = {}): Subscription {
   return {
     status: 'ACTIVE',
-    plan: { key: 'paid', name: 'Paid', priceMinor: '25000', currency: 'AMD', interval: 'MONTHLY' },
+    plan: {
+      key: 'paid',
+      name: 'Paid',
+      priceMinor: '25000',
+      currency: 'AMD',
+      interval: 'MONTHLY',
+      display: { locale: null, name: 'Paid', features: [] },
+    },
     currentPeriodEnd: LATER,
     cancelAtPeriodEnd: false,
     pendingFree: null,
@@ -212,8 +220,24 @@ describe('the readers keep no order number and no bank address beyond the one to
         planKey: 'managed-monthly',
         quantity: 1,
         totalMinor: '25000',
+        display: null,
       },
     ]);
+  });
+
+  it('an invoice line’s words in the language asked, and only those (FR-110)', () => {
+    const line = {
+      description: 'Managed (monthly)',
+      totalMinor: '25000',
+      descriptionTranslations: { ru: 'С организацией (ежемесячно)', hy: 'x' },
+      display: { locale: 'ru', description: 'С организацией (ежемесячно)', extra: 'dropped' },
+    };
+    expect(readInvoice({ ...invoice(), lines: [line] }).lines[0]?.display).toEqual({
+      locale: 'ru',
+      description: 'С организацией (ежемесячно)',
+    });
+    const broken = { ...line, display: { locale: 'ru' } };
+    expect(readInvoice({ ...invoice(), lines: [broken] }).lines[0]?.display).toBeNull();
   });
 
   it('an invoice whose stored lines are not what they should be', () => {

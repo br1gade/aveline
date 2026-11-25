@@ -86,7 +86,9 @@ describe('coming back from the bank', () => {
     const confirmed: string[] = [];
     const newest = { number: 'AV-2026-000001', status: 'ISSUED' };
     server.use(
-      http.get(`${API}/invoices`, () => HttpResponse.json([newest])),
+      http.get(`${API}/invoices/page`, () =>
+        HttpResponse.json({ items: [newest], nextCursor: null }),
+      ),
       http.post(`${API}/invoices/:number/confirm`, ({ params }) => {
         confirmed.push(String(params.number));
         return HttpResponse.json({ ...newest, status: 'PAID' });
@@ -103,7 +105,9 @@ describe('coming back from the bank', () => {
     signedIn();
     memberOf('a');
     payments(true);
-    server.use(http.get(`${API}/invoices`, () => HttpResponse.json([])));
+    server.use(
+      http.get(`${API}/invoices/page`, () => HttpResponse.json({ items: [], nextCursor: null })),
+    );
     await expect(load()).resolves.toMatchObject({ read: { kind: 'nothing' } });
   });
 
@@ -112,7 +116,9 @@ describe('coming back from the bank', () => {
     memberOf('a');
     server.use(
       http.get(`${API}/payment-options`, () => HttpResponse.json({}, { status: 503 })),
-      http.get(`${API}/invoices`, () => HttpResponse.json([{ number: 'AV-1', status: 'ISSUED' }])),
+      http.get(`${API}/invoices/page`, () =>
+        HttpResponse.json({ items: [{ number: 'AV-1', status: 'ISSUED' }], nextCursor: null }),
+      ),
       http.post(`${API}/invoices/:number/confirm`, () =>
         HttpResponse.json({ number: 'AV-1', status: 'PAID' }),
       ),
@@ -126,7 +132,9 @@ describe('coming back from the bank', () => {
     signedIn();
     memberOf('a');
     payments(false);
-    server.use(http.get(`${API}/invoices`, () => HttpResponse.json([])));
+    server.use(
+      http.get(`${API}/invoices/page`, () => HttpResponse.json({ items: [], nextCursor: null })),
+    );
     const loaded = await load();
     expect(loaded).toMatchObject({ read: { kind: 'nothing' } });
     expect(loaded.provider).toBeUndefined();

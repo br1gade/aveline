@@ -115,6 +115,11 @@ function answer(method: 'post' | 'get', path: string, response: () => Response) 
   return received;
 }
 
+/** A confirmed reset signs the owner in: the same pair as a sign-in (docs/API.md §2). */
+const RESET_TOKENS = { accessToken: 'a2', refreshToken: 'r2', tokenType: 'Bearer', expiresIn: 900 };
+const resetConfirmed = () =>
+  HttpResponse.json({ ok: true, sessionsRevoked: true, ...RESET_TOKENS });
+
 const refusal = (status: number) => () =>
   HttpResponse.json({ statusCode: status, message: 'refused' }, { status });
 
@@ -288,23 +293,19 @@ describe('ResetPassword', () => {
   });
 
   it('takes the token out of the address bar, and keeps it for the request', async () => {
-    const sent = answer('post', '/auth/password-reset/confirm', () =>
-      HttpResponse.json({ ok: true, sessionsRevoked: true }),
-    );
+    const sent = answer('post', '/auth/password-reset/confirm', resetConfirmed);
     const user = renderAt(`/reset-password?lang=hy&token=${TOKEN}`, ResetPassword);
     await waitFor(() => expect(screen.getByTestId('address')).toHaveTextContent('?lang=hy'));
     expect(screen.getByTestId('address')).not.toHaveTextContent(TOKEN);
 
     await user.type(screen.getByLabelText('New password'), 'a new long password');
     await user.click(screen.getByRole('button', { name: 'Save the new password' }));
-    expect(await screen.findByRole('heading', { name: 'Password changed' })).toBeInTheDocument();
+    expect(await screen.findByText('App home')).toBeInTheDocument();
     expect(sent).toEqual([{ token: TOKEN, password: 'a new long password' }]);
   });
 
   it('never puts the token in a link, and keeps it across a language switch', async () => {
-    const sent = answer('post', '/auth/password-reset/confirm', () =>
-      HttpResponse.json({ ok: true }),
-    );
+    const sent = answer('post', '/auth/password-reset/confirm', resetConfirmed);
     const user = renderAt(`/reset-password?token=${TOKEN}`, ResetPassword);
     for (const link of document.querySelectorAll('a')) {
       expect(link.getAttribute('href')).not.toContain(TOKEN);
@@ -314,19 +315,22 @@ describe('ResetPassword', () => {
     await waitFor(() => expect(screen.getByTestId('address')).toHaveTextContent('?lang=ru'));
     await user.type(screen.getByLabelText('New password'), 'a new long password');
     await user.click(screen.getByRole('button', { name: 'Save the new password' }));
-    await screen.findByRole('heading', { name: 'Password changed' });
+    await screen.findByText('App home');
     expect(sent).toEqual([{ token: TOKEN, password: 'a new long password' }]);
   });
 
-  it('ends the local session, since the reset ended every session', async () => {
-    answer('post', '/auth/password-reset/confirm', () => HttpResponse.json({ ok: true }));
-    answer('post', '/auth/logout', () => HttpResponse.json({ ok: true }));
+  it('signs the owner in with the pair the reset answers, in place of the session it ended', async () => {
+    answer('post', '/auth/password-reset/confirm', resetConfirmed);
+    const loggedOut = answer('post', '/auth/logout', () => HttpResponse.json({ ok: true }));
     current.session?.start(TOKENS);
     const user = renderAt(`/reset-password?token=${TOKEN}`, ResetPassword);
     await user.type(screen.getByLabelText('New password'), 'a new long password');
     await user.click(screen.getByRole('button', { name: 'Save the new password' }));
-    await screen.findByRole('heading', { name: 'Password changed' });
-    expect(store.getRefreshToken()).toBeUndefined();
+    await screen.findByText('App home');
+    expect(store.getRefreshToken()).toBe(RESET_TOKENS.refreshToken);
+    expect(store.getAccessToken()).toBe(RESET_TOKENS.accessToken);
+    // Signing out would tell the other tabs to drop the stored token, the new one included.
+    expect(loggedOut).toEqual([]);
   });
 
   it('says plainly when the link is old', async () => {

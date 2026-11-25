@@ -14,6 +14,7 @@ import exports from '../ru/exports.json';
 import followUps from '../ru/follow-ups.json';
 import guests from '../ru/guests.json';
 import organization from '../ru/organization.json';
+import pilotStats from '../ru/pilot-stats.json';
 import promoCodes from '../ru/promo-codes.json';
 import recordedAnswer from '../ru/recorded-answer.json';
 import runningOrder from '../ru/running-order.json';
@@ -44,6 +45,7 @@ export default {
   'follow-ups': followUps,
   guests,
   organization,
+  'pilot-stats': pilotStats,
   'promo-codes': promoCodes,
   'recorded-answer': recordedAnswer,
   'running-order': runningOrder,

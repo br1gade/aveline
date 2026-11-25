@@ -1,5 +1,6 @@
 import { expectData, type ApiClient, type PublicApiClient } from '@/api/client';
 import type { components } from '@/api/schema';
+import type { SessionTokens } from '@/api/session';
 
 import { listOwnOrganizations, settleChoice } from './organizations';
 import type { Account, InviteAccepted, InviteKind, Organization, OwnOrganization } from './types';
@@ -16,12 +17,18 @@ export async function requestPasswordReset(api: PublicApiClient, email: string):
   await expectData(api.POST('/api/v1/auth/password-reset', { body: { email } }));
 }
 
-/** Ends every session of the account, this one included. */
+/**
+ * Ends every session of the account, then signs the owner in: the answer carries the same pair as a
+ * sign-in, even while failed sign-ins make the account wait (docs/API.md §2, FR-160).
+ */
 export async function confirmPasswordReset(
   api: PublicApiClient,
   body: Schemas['ConfirmPasswordResetDto'],
-): Promise<void> {
-  await expectData(api.POST('/api/v1/auth/password-reset/confirm', { body }));
+): Promise<SessionTokens> {
+  const { accessToken, refreshToken, tokenType, expiresIn } = await expectData(
+    api.POST('/api/v1/auth/password-reset/confirm', { body }),
+  );
+  return { accessToken, refreshToken, tokenType, expiresIn };
 }
 
 /** Who is signed in: identity, platform role and whether the address is confirmed (FR-5). */

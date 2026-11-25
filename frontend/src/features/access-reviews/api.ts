@@ -6,8 +6,8 @@ import { readReview } from './read';
 
 import type { ReviewsPage } from './types';
 
-/** Ten at a time: each card reads its organization's name, against staff's 100 a minute (FR-133). */
-export const PAGE_SIZE = 10;
+/** The backend's default page: each review names its organization, so nothing more is read (FR-133). */
+export const PAGE_SIZE = 50;
 
 /** Open reviews, oldest first; `ADMIN` only. */
 export async function listReviews(api: ApiClient, cursor?: string): Promise<ReviewsPage> {

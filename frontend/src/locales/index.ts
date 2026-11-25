@@ -1,4 +1,8 @@
 import ruSheets from './ru/sheets.json';
+import ruPilotStats from './ru/pilot-stats.json';
+import hyPilotStats from './hy/pilot-stats.json';
+import frPilotStats from './fr/pilot-stats.json';
+import enPilotStats from './en/pilot-stats.json';
 import ruStaffAccounts from './ru/staff-accounts.json';
 import hySheets from './hy/sheets.json';
 import hyStaffAccounts from './hy/staff-accounts.json';
@@ -160,6 +164,7 @@ export const resources = {
   en: {
     sheets: enSheets,
     'staff-accounts': enStaffAccounts,
+    'pilot-stats': enPilotStats,
     billing: enBilling,
     organization: enOrganization,
     'promo-codes': enPromoCodes,
@@ -200,6 +205,7 @@ export const resources = {
   fr: {
     sheets: frSheets,
     'staff-accounts': frStaffAccounts,
+    'pilot-stats': frPilotStats,
     billing: frBilling,
     organization: frOrganization,
     'promo-codes': frPromoCodes,
@@ -240,6 +246,7 @@ export const resources = {
   hy: {
     sheets: hySheets,
     'staff-accounts': hyStaffAccounts,
+    'pilot-stats': hyPilotStats,
     billing: hyBilling,
     organization: hyOrganization,
     'promo-codes': hyPromoCodes,
@@ -280,6 +287,7 @@ export const resources = {
   ru: {
     sheets: ruSheets,
     'staff-accounts': ruStaffAccounts,
+    'pilot-stats': ruPilotStats,
     billing: ruBilling,
     organization: ruOrganization,
     'promo-codes': ruPromoCodes,

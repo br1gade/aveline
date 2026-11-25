@@ -1,4 +1,5 @@
 import { expectData, type ApiClient, type PublicApiClient } from '@/api/client';
+import type { CursorPage } from '@/ui/app-form';
 
 import { readChoice, readConfirmed, readInvoice, readPlan, readSubscription } from './read';
 
@@ -14,9 +15,20 @@ export async function currentSubscription(api: ApiClient): Promise<Subscription 
   return subscription && readSubscription(subscription);
 }
 
-/** Newest first, at most a hundred (FR-110). */
-export async function listInvoices(api: ApiClient): Promise<Invoice[]> {
-  return (await expectData(api.GET('/api/v1/invoices'))).map(readInvoice);
+/** A page the backend's default size. */
+const INVOICE_PAGE = 50;
+
+/** Newest first, a page at a time by the cursor (FR-110). */
+export async function listInvoices(
+  api: ApiClient,
+  { cursor, limit = INVOICE_PAGE }: { cursor?: string; limit?: number } = {},
+): Promise<CursorPage<Invoice>> {
+  const page = await expectData(
+    api.GET('/api/v1/invoices/page', {
+      params: { query: { limit, ...(cursor ? { cursor } : {}) } },
+    }),
+  );
+  return { items: page.items.map(readInvoice), nextCursor: page.nextCursor };
 }
 
 /**

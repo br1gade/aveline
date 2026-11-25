@@ -5,7 +5,6 @@
   "none": "Nothing is waiting.",
   "more": "Show more",
   "reading": "Reading…",
-  "nameUnread": "Its name couldn’t be read, so its reference is shown.",
   "opened": "Opened {{day}}",
   "decisionFor": "{{decision}}: {{name}}",
   "reason": {
@@ -40,8 +39,7 @@
     "stopped": "Only the first 200 members are listed."
   },
   "close": {
-    "typeLabel": "Type the organization’s name to confirm",
-    "typeReference": "Type the organization’s reference, as shown above, to confirm"
+    "typeLabel": "Type the organization’s name to confirm"
   },
   "status": {
     "HANDOVER": "{{name}} has a new owner.",

@@ -1,5 +1,6 @@
 import type { ApiClient } from '@/api/client';
 import { fetchPaymentOptions, type PaymentOptions } from '@/api/payment-options';
+import type { CursorPage } from '@/ui/app-form';
 
 import { confirmInvoice, currentSubscription, listInvoices, listPlans } from './api';
 import { billingRefusalOf, type BillingRefusal } from './refusals';
@@ -10,7 +11,8 @@ type Read<T> = { kind: 'ready'; value: T } | { kind: 'refused'; refusal: Billing
 export interface BillingData {
   plans: Plan[];
   subscription: Read<Subscription | null>;
-  invoices: Read<Invoice[]>;
+  /** The first page; the rest is read on request. */
+  invoices: Read<CursorPage<Invoice>>;
   /** Whether a paid plan can be bought now, and with which bank (FR-109). */
   payment: PaymentOptions;
   /** The clock a subscription's standing is read at, so a render never reads it again. */
@@ -51,7 +53,7 @@ export type ReturnRead =
  */
 export async function confirmNewestInvoice(api: ApiClient): Promise<ReturnRead> {
   try {
-    const [newest] = await listInvoices(api);
+    const [newest] = (await listInvoices(api, { limit: 1 })).items;
     if (!newest) return { kind: 'nothing' };
     return { kind: 'confirmed', invoice: await confirmInvoice(api, newest.number) };
   } catch (error) {

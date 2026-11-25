@@ -481,6 +481,22 @@ describe("the bank's return (PD-82)", () => {
     expect(reads.get).toBe(0);
   });
 
+  it('offers no new payment when only staff can settle it, and says whom to contact', async () => {
+    vi.stubEnv('VITE_SUPPORT_TELEGRAM', 'aveline_help');
+    onTestFinished(() => {
+      vi.unstubAllEnvs();
+    });
+    holdOrder({ accessToken: TOKEN });
+    serveConfirm(() =>
+      refusal(502, 'Bank amount does not match this payment; operator reconciliation required'),
+    );
+    renderAt('/tickets/return');
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('our team needs to check it');
+    expect(within(alert).getByRole('link', { name: '@aveline_help' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument();
+  });
+
   it('explains a hold that ended, and what happens to money taken late', async () => {
     holdOrder({ accessToken: TOKEN });
     serveConfirm(() =>

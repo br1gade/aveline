@@ -14,6 +14,7 @@ type AppPage =
   | 'staffDataRequests'
   | 'staffAccessReviews'
   | 'staffAccounts'
+  | 'staffPilot'
   | 'newEvent'
   | 'event'
   | 'editEvent'

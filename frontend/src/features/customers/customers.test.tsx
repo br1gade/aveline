@@ -41,6 +41,9 @@ const petrosyan = {
   pendingOwnerInvites: ['new@example.am'],
 };
 const searches: Array<string | null> = [];
+const cursors: Array<string | null> = [];
+const onePage = (items: unknown[], nextCursor: string | null = null) =>
+  HttpResponse.json({ items, nextCursor });
 const bodies: unknown[] = [];
 
 function refusal(status: number, message: string, code?: string) {
@@ -50,11 +53,13 @@ function refusal(status: number, message: string, code?: string) {
   );
 }
 
-function serve(list: () => Response = () => HttpResponse.json([petrosyan])) {
+function serve(list: (cursor: string | null) => Response = () => onePage([petrosyan])) {
   server.use(
-    http.get(ORGANIZATIONS, ({ request }) => {
-      searches.push(new URL(request.url).searchParams.get('search'));
-      return list();
+    http.get(`${ORGANIZATIONS}/page`, ({ request }) => {
+      const query = new URL(request.url).searchParams;
+      searches.push(query.get('search'));
+      cursors.push(query.get('cursor'));
+      return list(query.get('cursor'));
     }),
   );
 }
@@ -74,6 +79,7 @@ function answerOpen(...answers: Array<() => Response>) {
 beforeAll(() => server.listen({ onUnhandledFrame: 'error' }));
 beforeEach(() => {
   searches.length = 0;
+  cursors.length = 0;
   bodies.length = 0;
   current.session = createBrowserSession({
     baseUrl: ORIGIN,
@@ -146,11 +152,33 @@ describe('finding a customer', () => {
     expect(row).toHaveTextContent('2 events');
   });
 
-  it('searches by the name in the address, and says only the newest are shown', async () => {
+  it('shows the next organizations by the cursor, under the same search (FR-127)', async () => {
+    const kotlyar = { ...petrosyan, id: 'o2', name: 'Kotlyar Jubilee' };
+    serve((cursor) => (cursor === 'c1' ? onePage([kotlyar]) : onePage([petrosyan], 'c1')));
+    const user = await open(`${APP_PATHS.staffCustomers}?q=we`);
+    expect(screen.queryByText('Kotlyar Jubilee')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Show more organizations' }));
+    expect(await screen.findByText('Kotlyar Jubilee')).toBeVisible();
+    expect(screen.getByText('Petrosyan Wedding')).toBeVisible();
+    expect(cursors).toEqual([null, 'c1']);
+    expect(searches).toEqual(['we', 'we']);
+    expect(
+      screen.queryByRole('button', { name: 'Show more organizations' }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('says when the next organizations can’t be read, and keeps those shown', async () => {
+    serve((cursor) => (cursor ? refusal(429, 'Too many requests') : onePage([petrosyan], 'c1')));
+    const user = await open();
+    await user.click(screen.getByRole('button', { name: 'Show more organizations' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('couldn’t be loaded');
+    expect(screen.getByText('Petrosyan Wedding')).toBeVisible();
+  });
+
+  it('searches by the name in the address', async () => {
     serve();
     const user = await open();
     expect(searches).toEqual([null]);
-    expect(screen.getByText(/newest 50/)).toBeInTheDocument();
     await user.type(screen.getByRole('searchbox'), 'petro');
     await user.click(screen.getByRole('button', { name: 'Search' }));
     await waitFor(() => expect(screen.getByTestId('where')).toHaveTextContent('?q=petro'));
@@ -165,7 +193,7 @@ describe('finding a customer', () => {
   });
 
   it('says when nothing is found', async () => {
-    serve(() => HttpResponse.json([]));
+    serve(() => onePage([]));
     await open();
     expect(screen.getByText('No organizations found.')).toBeInTheDocument();
   });
@@ -189,7 +217,7 @@ describe('finding a customer', () => {
 
   it('keeps the search and what was typed when the list can’t be read', async () => {
     let isDown = false;
-    serve(() => (isDown ? refusal(400, 'search must be shorter') : HttpResponse.json([petrosyan])));
+    serve(() => (isDown ? refusal(400, 'search must be shorter') : onePage([petrosyan])));
     const user = await open();
     await user.type(screen.getByLabelText('Owner’s email address'), 'anna@example.am');
     isDown = true;
@@ -256,7 +284,7 @@ describe('what the API layer keeps', () => {
   });
 
   it('keeps what it shows of an organization and a choice', async () => {
-    serve(() => HttpResponse.json([{ ...petrosyan, extra: 'x' }]));
+    serve(() => onePage([{ ...petrosyan, extra: 'x' }]));
     server.use(
       http.post(`${ORGANIZATIONS}/resolve-customer`, () =>
         HttpResponse.json({
@@ -266,7 +294,10 @@ describe('what the API layer keeps', () => {
       ),
     );
     const { kind: _kind, createdAt: _createdAt, ...shown } = petrosyan;
-    await expect(findOrganizations(api(), null)).resolves.toEqual([shown]);
+    await expect(findOrganizations(api(), null)).resolves.toEqual({
+      items: [shown],
+      nextCursor: null,
+    });
     await expect(customerChoices(api(), 'a@x.am')).resolves.toEqual({
       items: [{ id: 'o3', name: 'B', relationship: 'OWNER' }],
       isComplete: true,
@@ -298,16 +329,21 @@ describe('the staff’s home', () => {
     );
   });
 
-  it('leads an administrator, and only one, to the staff accounts (design PD-200)', async () => {
+  it('leads an administrator, and only one, to the staff accounts and the pilot’s totals (design PD-200, PD-205)', async () => {
     renderHome({ kind: 'ready', value: [] }, true);
     expect(await screen.findByRole('link', { name: 'Staff accounts' })).toHaveAttribute(
       'href',
       APP_PATHS.staffAccounts,
     );
+    expect(screen.getByRole('link', { name: 'Pilot totals' })).toHaveAttribute(
+      'href',
+      APP_PATHS.staffPilot,
+    );
     cleanup();
     renderHome({ kind: 'ready', value: [] });
     await screen.findByRole('link', { name: 'Customers' });
     expect(screen.queryByRole('link', { name: 'Staff accounts' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Pilot totals' })).not.toBeInTheDocument();
   });
 
   it('offers a customer nothing, and says whose it is', async () => {

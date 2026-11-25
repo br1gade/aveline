@@ -5,7 +5,6 @@
   "none": "Rien n’est en attente.",
   "more": "Afficher plus",
   "reading": "Lecture…",
-  "nameUnread": "Son nom n’a pas pu être lu, sa référence est donc affichée.",
   "opened": "Ouverte le {{day}}",
   "decisionFor": "{{decision}} : {{name}}",
   "reason": {
@@ -40,8 +39,7 @@
     "stopped": "Seuls les 200 premiers membres sont listés."
   },
   "close": {
-    "typeLabel": "Saisissez le nom de l’organisation pour confirmer",
-    "typeReference": "Saisissez la référence de l’organisation, telle qu’affichée plus haut, pour confirmer"
+    "typeLabel": "Saisissez le nom de l’organisation pour confirmer"
   },
   "status": {
     "HANDOVER": "{{name}} a un nouveau propriétaire.",

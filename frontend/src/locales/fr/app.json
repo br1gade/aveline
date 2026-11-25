@@ -58,7 +58,8 @@
     "staffCustomers": "Clients · Aveline",
     "staffDataRequests": "Demandes sur les données · Aveline",
     "staffAccessReviews": "Revues d’accès · Aveline",
-    "staffAccounts": "Comptes du personnel · Aveline"
+    "staffAccounts": "Comptes du personnel · Aveline",
+    "staffPilot": "Bilan du pilote · Aveline"
   },
   "shell": {
     "loading": "Chargement…",

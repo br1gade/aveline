@@ -648,6 +648,22 @@ describe('refusals and retries (PD-80)', () => {
     expect(posted[2]?.idempotencyKey).not.toBe(posted[0]?.idempotencyKey);
   });
 
+  it('says whom to contact, not to press again, when only staff can settle the payment', async () => {
+    serveOrders(() =>
+      refusal(
+        502,
+        'Payment registration outcome is unknown. Keep this purchase and confirm with support before trying another payment',
+      ),
+    );
+    const { user } = renderCheckout('general.1');
+    await fillOne(user);
+    await user.click(await submit());
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('our team needs to check it');
+    expect(alert).toHaveTextContent('Please don’t order again');
+    expect(alert).not.toHaveTextContent('Press again');
+  });
+
   it('brings the order back after a reload, sends it with the same key, then forgets it (PD-152)', async () => {
     serveOrders(() => refusal(502, 'Bad Gateway'), paid);
     const first = renderCheckout('general.1');

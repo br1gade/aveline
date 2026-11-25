@@ -5,6 +5,7 @@ import { formatMinor } from '@/lib/money';
 import { formatEventDay, DEFAULT_TIME_ZONE } from '@/lib/time';
 import { APP_PATHS } from '@/route-paths';
 import { WordedRefusal } from '@/ui/app-form';
+import { SupportContacts } from '@/ui/support-contacts';
 
 import { isFree } from '../plans';
 import type { BillingRefusal } from '../refusals';
@@ -22,6 +23,10 @@ export function BillingProblem({ refusal }: { refusal: BillingRefusal }) {
         english={refusal.kind === 'other' ? refusal.sentence : undefined}
         requestId={'requestId' in refusal ? refusal.requestId : undefined}
       />
+      {/* Only staff can settle it, so whom to contact comes with it (docs/API.md §6; design C-54). */}
+      {refusal.kind === 'uncertain' ? (
+        <SupportContacts linkClassName="text-primary underline underline-offset-4" />
+      ) : null}
       {refusal.kind === 'chooseOrganization' ? (
         <Link
           to={APP_PATHS.organizations}
@@ -49,4 +54,12 @@ export function usePrice() {
     const amount = formatMinor(priceMinor, currency, i18n.language);
     return t(`price.${interval}`, { amount, defaultValue: amount });
   };
+}
+
+/**
+ * The language of words the backend sent: the one it names, or English when it holds no translation
+ * and sent the plan's or line's own words (docs/API.md §6, FR-110).
+ */
+export function wordsLanguage(locale: string | null): string {
+  return locale ?? 'en';
 }

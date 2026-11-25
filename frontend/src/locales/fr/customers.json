@@ -5,7 +5,8 @@
     "customers": "Clients",
     "dataRequests": "Demandes sur les données",
     "accessReviews": "Revues d’accès",
-    "staffAccounts": "Comptes du personnel"
+    "staffAccounts": "Comptes du personnel",
+    "pilotStats": "Bilan du pilote"
   },
   "title": "Clients",
   "back": "Retour aux outils",
@@ -13,7 +14,8 @@
     "title": "Trouver un client",
     "searchLabel": "Nom de l’organisation, ou une partie",
     "search": "Rechercher",
-    "limit": "Les 50 plus récentes sont affichées.",
+    "more": "Afficher d’autres organisations",
+    "moreFailed": "La suite n’a pas pu être chargée. Veuillez réessayer.",
     "none": "Aucune organisation trouvée.",
     "owners": "Propriétaires : {{addresses}}",
     "invited": "Invités, pas encore acceptés : {{addresses}}",

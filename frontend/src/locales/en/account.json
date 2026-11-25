@@ -35,7 +35,7 @@
     "submit": "Sign in",
     "submitting": "Signing in…",
     "refused": "That email and password don’t match an account.",
-    "tooManyAttempts": "Too many failed sign-ins to this account. Wait 15 minutes and try again. If you think someone else is trying your password, reset it.",
+    "tooManyAttempts": "Too many failed sign-ins to this account. Wait 15 minutes and try again. If you think someone else is trying your password, reset it: a reset signs you in straight away.",
     "resetInstead": "Reset your password"
   },
   "register": {
@@ -59,15 +59,11 @@
     },
     "choose": {
       "title": "Choose a new password",
-      "lead": "Every device signed in to your account will be signed out.",
+      "lead": "Every device signed in to your account will be signed out, and you’ll be signed in here.",
       "submit": "Save the new password",
       "submitting": "Saving…"
     },
-    "linkInvalid": "This link has expired, was already used, or a newer one was sent.",
-    "done": {
-      "title": "Password changed",
-      "body": "Every device was signed out. Sign in with your new password."
-    }
+    "linkInvalid": "This link has expired, was already used, or a newer one was sent."
   },
   "verifyEmail": {
     "title": "Confirm your email",
