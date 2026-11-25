@@ -2202,6 +2202,14 @@ staff work remain. Every worker still rechecks current operation/contact permiss
 Closure reviews remove nothing until an ADMIN resolves HANDOVER, CLOSE or DECLINE.
 The ADMIN review queue returns `{items,nextCursor}`; each review includes
 `organization: {name,kind}` alongside its organization ID and review `revision`.
+The review's `reason` describes why administrator attention is needed:
+
+| Reason | Meaning |
+|---|---|
+| `LAST_OWNER_CLOSURE` | A current owner requested a closure review through `POST /organizations/current/closure-reviews`. This request does not itself close the organization or remove its owner. |
+| `INACTIVE_OWNER_RECOVERY` | Owner-account reconciliation found that the organization has no active owner. An administrator must review recovery, handover or closure. |
+
+Treat `reason` as an extensible string; show a neutral review label for an unknown value.
 Resolution's `expectedRevision` is this review revision, rather than the
 organization's `accessRevision`. A stale review returns `409 REVISION_CHANGED`
 with `expectedRevision: review revision changed`; reload the review before
@@ -2354,6 +2362,17 @@ local expiry proved never to have started registration. A timeout, interrupted
 registration or expiry with a bank reference keeps the existing attempt; its
 bank page may still be payable. An uncertain registration can answer `502`;
 retain the purchase and contact support rather than submitting a new purchase.
+These two payment refusals have stable codes in the standard error envelope:
+
+| HTTP status | `code` | Meaning | `action` |
+|---|---|---|---|
+| `502` | `PAYMENT_OUTCOME_UNKNOWN` | Registration may have reached the bank, but its result could not be recorded or confirmed. Keep the original purchase for reconciliation. | `CONTACT_SUPPORT` |
+| `502` | `PAYMENT_AMOUNT_MISMATCH` | The bank reports an authorized or captured amount that differs from the stored purchase amount. This check does not settle the purchase. | `CONTACT_SUPPORT` |
+
+Use `code` rather than matching English `message` text. Both retain their existing
+HTTP status and English `message`; `userMessage` is localized in English, Russian,
+French or Armenian. Neither refusal permits another payment or an automatic
+retry. Other upstream/proxy errors do not acquire these payment-specific codes.
 **Nothing changes
 until the new invoice is paid**: the current plan and status stay as they are,
 and paying applies the invoice's plan with a period starting then. A paid

@@ -245,7 +245,8 @@ The other commercial/resource/logistics features remain planned.
   settlement races, including partial refunds. Backend implemented 23 November.
 - [x] Add original-initiator non-tax payment confirmation email with outbox
   recovery and privacy fencing; localized billing display and paged invoice
-  history are built. Client adoption and printing remain separate acceptance.
+  history are built. Client billing-display and invoice-page adoption completed
+  in `46d87a4` on 25 November; printing awaits the fiscal-document decision.
 - [ ] Choose the bank/provider; obtain the actual integration specification,
   merchant/sandbox access and required certification before enabling live charges.
 - [ ] Verify amounts/status mappings, payment/refund/reconciliation behavior and

@@ -91,12 +91,16 @@ Run focused regressions per slice, then the full backend gate and local CI on th
 FR-99 precedence and BQ-11 are implemented in the first backend slice. The
 Telegram rollout still needs a staging bot and provider rehearsal. FR-129's
 existing ticket code format is documented. FR-132's concierge eligibility
-filters are in place before pagination. FR-46 and FR-59 are implemented in the
-backend and await client adoption and staging acceptance. FR-92's listing card
-fields are implemented and await client adoption, as are FR-96's translated side
-labels and FR-104's brief language. FR-99 is implemented in full, its paged list
-included. FR-127 staff pagination and FR-133 access-review context are implemented
-in the backend as of 23 November 2026; client adoption and staging acceptance
-remain open. FR-110(a–c) now has localized display metadata, documented captured
-line fields and paged invoice history. Payment availability metadata (FR-64 and
-FR-109) remains open. Frontend adoption follows the handoff for each slice.
+filters are in place before pagination. FR-46 and FR-59 are implemented and
+adopted by the client; staging acceptance remains open. FR-92's listing card
+fields, FR-96's translated side labels, FR-104's brief language and FR-99's
+suppression contracts are implemented and adopted, as recorded in the frontend
+register. FR-127 staff pagination, FR-133 access-review context
+and FR-110(a–c) localized display, captured line fields and paged invoice history
+were adopted in `46d87a4` on 25 November 2026. The client reports local real-backend
+checks; production-like staging and provider acceptance remain separate. FR-199's
+two payment error codes and the access-review reason documentation are implemented
+in the follow-up. See [the delivery record](CLIENT_BACKEND_REQUESTS.md) for the
+client's verification evidence and the remaining backend, configuration and
+business gates. Payment availability metadata (FR-64 and FR-109) was implemented
+in `dc9f4c2` and adopted by the client on 16 November; real-bank acceptance remains open.

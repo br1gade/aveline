@@ -75,7 +75,7 @@ Write the reproducing test first at its cheapest meaningful layer, confirm the r
 | FR-43 | Declare each block's content and settings fields | S5 templates/renderer | Audit and implement |
 | FR-44 | Partly answered at 34ac1e6: the eventId path parameter and a nullable variant are in the schema | S2 contract/identity | Implemented; backend verification recorded; merged in `75e22e8` |
 | FR-45 | Answered at 34ac1e6 | S3 host/guest operations | Audit confirmed code/schema and regression coverage; merged in `75e22e8` |
-| FR-46 | A per-event switch for the guest gallery | S3 host/guest operations | Backend implemented. Client control and staging acceptance open |
+| FR-46 | A per-event switch for the guest gallery | S3 host/guest operations | Backend implemented and client control adopted, as recorded in the frontend register. Staging acceptance open |
 | FR-47 | Filters, counts and usage on GET /events/:eventId/gallery | S3 host/guest operations | Audit and implement |
 | FR-48 | Say who shared a photo, to the hosts, or say why not | S3 host/guest operations | Audit and implement |
 | FR-49 | Name the guests in GET /events/:eventId/acknowledgements | S3 host/guest operations | Audit and implement |
@@ -88,12 +88,12 @@ Write the reproducing test first at its cheapest meaningful layer, confirm the r
 | FR-56 | Partly answered at 34ac1e6: zone, venueId, posX and posY are typed | S2 contract/identity | Implemented; backend verification recorded; merged in `75e22e8` |
 | FR-57 | Name the venue in each seatReleases record, as seating does (guests.service.ts, guestView) | S3 host/guest operations | Audit and implement |
 | FR-58 | Codes for the export refusals that share a status | S3 host/guest operations | Audit and implement |
-| FR-59 | Export failure codes that say what to do | S3 host/guest operations | Backend implemented. Client recovery adoption and staging acceptance open |
+| FR-59 | Export failure codes that say what to do | S3 host/guest operations | Backend implemented and client recovery adopted, as recorded in the frontend register. Staging acceptance open |
 | FR-60 | Say which export kinds carry contacts, or ignore includesContacts where none do | S3 host/guest operations | Audit and implement |
 | FR-61 | Say who made each export | S3 host/guest operations | Audit and implement |
-| FR-62 | Name the event, the ticket types and the buyer in GET /ticket-orders/:accessToken and its confirm | S4 ticketing/vendors/billing | Backend merged in `c86782e`; frontend adoption pending |
+| FR-62 | Name the event, the ticket types and the buyer in GET /ticket-orders/:accessToken and its confirm | S4 ticketing/vendors/billing | Backend merged in `c86782e`; frontend adopted, as recorded in its register |
 | FR-63 | Codes for checkout's refusals | S4 ticketing/vendors/billing | Audit and implement |
-| FR-64 | Say on the public event's checkout whether paid tickets can be bought, and with which banks | S4 ticketing/vendors/billing | Audit and implement |
+| FR-64 | Say on the public event's checkout whether paid tickets can be bought, and with which banks | S4 ticketing/vendors/billing | Implemented in `dc9f4c2` on 15 November 2026 and client adopted 16 November. Provider acceptance remains open |
 | FR-65 | Translate venue names in GET /public/events/:slug and in its checkout.venues, as FR-40 asks of the reply  | S4 ticketing/vendors/billing | Audit and implement |
 | FR-66 | Return salesStartAt on the public ticket types | S4 ticketing/vendors/billing | Audit and implement |
 | FR-67 | Let PATCH …/ticket-types/:typeId clear a sales window | S4 ticketing/vendors/billing | Audit and implement |
@@ -105,10 +105,10 @@ Write the reproducing test first at its cheapest meaningful layer, confirm the r
 | FR-73 | Give GET /public/events/:slug the guest-page allowance, or trust a forwarded client address from our rend | S3 host/guest operations | Implemented; backend verification recorded; merged in `75e22e8` |
 | FR-74 | Keep contact details out of a CSV's "No first-name column found" error | S1 safety/correctness | Implemented; backend verification recorded; merged in `75e22e8` |
 | FR-75 | Refuse a blank answer to a required question | S1 safety/correctness | Implemented; backend verification recorded; merged in `75e22e8` |
-| FR-76 | Codes and facts on the door's refusals | S3 host/guest operations | Backend implemented in this follow-up; client adoption pending |
+| FR-76 | Codes and facts on the door's refusals | S3 host/guest operations | Backend implemented and client adopted. Phone rehearsal against the real API remains acceptance work |
 | FR-77 | Check arrival and ticket state before the agreement gate | S1 safety/correctness | Audit and implement |
 | FR-78 | Who still must agree, per person, on a host's read | S3 host/guest operations | Audit and implement |
-| FR-79 | A light list for the door, and a search | S3 host/guest operations | Roster API implemented. Client adoption and door rehearsal open. |
+| FR-79 | A light list for the door, and a search | S3 host/guest operations | Roster API implemented and client adopted. Door rehearsal remains acceptance work |
 | FR-80 | Let admit return the door screen, as check-in does, and name who arrived | S3 host/guest operations | Audit and implement |
 | FR-81 | Count an unlinked ticket's admission, and let it be undone | S3 host/guest operations | Audit and implement |
 | FR-82 | Codes a person can type | S3 host/guest operations | Audit and implement |
@@ -121,25 +121,25 @@ Write the reproducing test first at its cheapest meaningful layer, confirm the r
 | FR-89 | Word the team invitation's email | S3 host/guest operations | Audit and implement |
 | FR-90 | A door-only role, if product wants one (PQ-15) | S3 host/guest operations | Implement defects; product-dependent portion pending answer |
 | FR-91 | A directory staff can keep | S3 host/guest operations | Audit and implement |
-| FR-92 | timezone, locale and endsAt on each listing card | S3 host/guest operations | Implemented 11 November 2026. Client adoption open. |
+| FR-92 | timezone, locale and endsAt on each listing card | S3 host/guest operations | Implemented 11 November 2026; client adopted 12 November |
 | FR-93 | The listing's categories and availability | S3 host/guest operations | Audit and implement |
 | FR-94 | The running order's writes: a notice, the venue, and three loose ends | S1 safety/correctness | Audit and implement |
 | FR-95 | Recording an answer: return what was saved, and let status be left out | S3 host/guest operations | Audit and implement |
-| FR-96 | Side labels in each language | S3 host/guest operations | Implemented 12 November 2026. Client adoption open. |
+| FR-96 | Side labels in each language | S3 host/guest operations | Implemented and client adopted 12 November 2026 |
 | FR-97 | An archived event: which writes stay open, and whether it can be deleted | S3 host/guest operations | Audit and implement |
 | FR-98 | "Who must not be contacted" for someone outside the organization | S3 host/guest operations | Audit and implement |
-| FR-99 | Suppression writes and reads | S1 safety/correctness | Implemented: (a) precedence, (b)–(d) and (f) on 12 November 2026, and (e) by paging the list, breaking for the client. Client adoption open. |
+| FR-99 | Suppression writes and reads | S1 safety/correctness | Implemented: (a) precedence, (b)–(d) and (f) on 12 November 2026, and (e) by paging the list, breaking for the client. Client adopted 12 November |
 | FR-100 | Promo codes: a currency, a zone, clearing, the pilot | S4 ticketing/vendors/billing | Audit and implement |
 | FR-101 | translations on creating an event | S3 host/guest operations | Audit and implement |
 | FR-102 | Correct and remove an organization's own vendor, and read back its notes | S4 ticketing/vendors/billing | Implemented; organization-owned edits, private notes and soft removal; merged in `75e22e8` |
 | FR-103 | Vendor choices for someone on an event only | S4 ticketing/vendors/billing | Implemented; event-scoped vendor choices verified; merged in `75e22e8` |
-| FR-104 | Say a brief's language, and give it in the vendor's | S4 ticketing/vendors/billing | Implemented 12 November 2026 in the event's language (C-45). Client adoption open. |
+| FR-104 | Say a brief's language, and give it in the vendor's | S4 ticketing/vendors/billing | Implemented and client adopted 12 November 2026 in the event's language (C-45) |
 | FR-105 | Expose the usual sections for each kind of vendor | S4 ticketing/vendors/billing | Implemented; picker returns brief section purposes and defaults; merged in `75e22e8` |
 | FR-106 | A booking's fee: clearing it, its currency, and a null | S4 ticketing/vendors/billing | Implemented; 84 vendor/access HTTP cases passed; merged in `75e22e8` |
 | FR-107 | What a brief's sections carry beyond their purpose | S4 ticketing/vendors/billing | Implemented; vendor HTTP and snapshot verification recorded; merged in `75e22e8` |
 | FR-108 | Withdraw a brief link without making another | S4 ticketing/vendors/billing | Implemented; vendor HTTP and snapshot verification recorded; merged in `75e22e8` |
-| FR-109 | Say whether paid plans can be bought, and with which banks, as FR-64 asks of tickets, and give the pilot' | S4 ticketing/vendors/billing | Audit and implement |
-| FR-110 | Billing's data | S4 ticketing/vendors/billing | (a–c) backend implemented 23 November: localized display, captured line fields and invoice pages; client adoption open. (f) scheduled Free implemented under FR-135. Return-page correlation and renewal remain separate work. |
+| FR-109 | Say whether paid plans can be bought, and with which banks, as FR-64 asks of tickets, and give the pilot' | S4 ticketing/vendors/billing | Implemented in `dc9f4c2` on 15 November 2026 and client adopted 16 November. Provider acceptance remains open |
+| FR-110 | Billing's data | S4 ticketing/vendors/billing | (a–c) backend implemented 23 November: localized display, captured line fields and invoice pages; client adopted in `46d87a4` on 25 November. (f) scheduled Free implemented and adopted under FR-135. (d) return-page correlation and (e) renewal remain backend work |
 | FR-111 | Tell "analytics is off" from "no views", and count songs per venue | S3 host/guest operations | Audit and implement |
 | FR-112 | Approve several photos in one request | S3 host/guest operations | Audit and implement |
 | FR-113 | The drawn plan's writes | S3 host/guest operations | Audit and implement |
@@ -262,8 +262,9 @@ The frontend register adds FR-127 through FR-136. FR-131 is addressed in this
 follow-up. An applied erasure stays in recovery and cannot be rejected.
 FR-135 is the period-end free-plan change already decided under FR-110.
 FR-127 staff pages and FR-133 review organization context/revision wording are
-implemented in the backend as of 23 November 2026. Their client adoption and
-staging acceptance remain open. Other new rows retain their individual status.
+implemented in the backend as of 23 November 2026 and adopted by the client in
+`46d87a4` on 25 November. Production-like staging acceptance remains separate.
+Other new rows retain their individual status.
 
 ### Backend launch-safety handoff, 23 November 2026
 
@@ -276,14 +277,47 @@ filters, cursor bounds, locale fallback and response examples.
 
 Durable payment associations and registration recovery, late/duplicate capture
 settlement, and original-initiator non-tax payment confirmation email are built.
-These backend changes do not complete client adoption, invoice printing, fiscal
-invoices, provider certification or production configuration. Their launch gates
-remain in [GOING_LIVE.md](GOING_LIVE.md) and [PAYMENTS.md](PAYMENTS.md).
+Client adoption of this handoff is recorded below. Invoice printing, fiscal
+invoices, provider certification and production configuration remain subject to
+the launch gates in [GOING_LIVE.md](GOING_LIVE.md) and [PAYMENTS.md](PAYMENTS.md).
+
+### Client adoption and FR-199 follow-up, 25 November 2026
+
+The client adopted the `f875c06` contract in
+[`46d87a4`](https://github.com/br1gade/aveline/commit/46d87a4):
+FR-127 concierge/privacy pages, FR-110(a–c) localized plans and invoices plus
+invoice pages, FR-133 organization names and stale-review reloads, payment
+uncertainty guidance, and the erasure report's `invoiceContextsCleared` count.
+The frontend register also records adoption of the earlier gallery/export,
+listing, side-label, brief-language and suppression contracts; their stale
+adoption entries above are corrected without closing separate acceptance gates.
+
+The client reports `npm run verify` passing with 4,850 tests and local real-backend
+account, billing, tickets, accessibility and SSR journeys on phone, iPhone and
+desktop: 105 passed and nine skipped for pilot/production-only conditions. The
+English desktop staff, billing and pricing walkthroughs passed axe. These are
+the client's reported results, not production-provider or native-language sign-off.
+
+**FR-199 is implemented in this follow-up:** registration uncertainty returns
+`502 PAYMENT_OUTCOME_UNKNOWN`; an authorized/captured amount mismatch returns
+`502 PAYMENT_AMOUNT_MISMATCH`. Both carry `action: CONTACT_SUPPORT`. The client
+can replace its English-message matching with `code`; the existing English
+messages and HTTP statuses remain compatible. The API contract now also documents
+the access-review reasons `LAST_OWNER_CLOSURE` and `INACTIVE_OWNER_RECOVERY`.
+
+Remaining **backend feature work** is FR-110(d), bank-return invoice correlation,
+and FR-110(e), renewal. **Frontend printing** awaits the fiscal-document decision
+(PD-209); native-language review is separate acceptance. **Deployment/configuration**
+still requires reader floor 4, stopping writers before migration, `seed:production`
+and payment-email delivery checks. **Provider acceptance** still requires staging
+bank-lifetime, interrupted-registration, late-capture and refund rehearsals.
+**Business/legal** decisions on the bank/certification, fiscal rules, ticket seller
+and host payouts, and payment-email approval remain separate launch gates.
 
 A6 was superseded. Frontend and backend ticketing merged through `dev` to
 `main` at `2fe4df0`. The real-backend ticketing rehearsal covered seat and
-zone purchase and admission. Wider real-backend acceptance, dedicated
-frontend CI and the production origin layout remain separate work.
+zone purchase and admission. Frontend CI now runs on push and pull request;
+wider staging acceptance and the production origin layout remain separate work.
 
 ## Implementation plan for the small and bounded requests
 
@@ -376,9 +410,10 @@ structured door refusal contract, and FR-130 projects the two qualifying
 relationships in concierge lookup and reuse. The shared launch checklist
 now reflects the merged frontend and the remaining launch evidence.
 
-FR-62, frontend CI, and adoption of FR-76, FR-130 and FR-134 remain client
-handoff items. The same-origin release wiring and the backend for FR-79,
-FR-115, FR-128 and FR-135 are implemented. The
+The frontend register records FR-62, FR-76, FR-130 and FR-134 as adopted.
+Frontend CI has run on push and pull request since 22 November 2026. The
+same-origin release wiring and the backend for FR-79, FR-115, FR-128 and FR-135
+are implemented; staging acceptance and the remaining rollout gates stay open. The
 [larger requests implementation plan](CLIENT_LARGER_REQUESTS_PLAN.md)
 records the API handoff and remaining rollout and rehearsal work. The
 [remaining priority plan](CLIENT_REMAINING_PRIORITY_PLAN.md) covers the
@@ -399,7 +434,8 @@ card already reads, so no query is added. FR-141 adds `isErased` to each door
 roster row and keeps erased guests in their household's results. FR-142 and
 FR-147 give the door roster and `GET /plans` the guest-page read allowance. Each
 route keeps its own count, so check-ins and other writes keep the default limit.
-All four are additive. Client adoption and the real-backend rehearsal are open.
+All four are additive and adopted by the client, as recorded in its register.
+The local ticket journeys reported above do not replace the staged door rehearsal.
 
 ### Side labels, brief language and suppression input (12 November 2026)
 

@@ -25,6 +25,7 @@ import { assertChargesEnabled } from './pilot-payments';
 import { isRecordNotFound } from '../../common/prisma-errors';
 import { canRecoverPayment, claimPayment, PaymentAssociation } from './payment-claim';
 import { hasMissingPurchase } from './payment-association';
+import { DomainHttpException } from '../../common/domain-http.exception';
 
 /** What the bank reports when it holds the payer's money. */
 const MONEY_HELD_STATUSES: readonly PaymentStatus[] = [PaymentStatus.AUTHORIZED, PaymentStatus.CAPTURED];
@@ -103,7 +104,7 @@ export class PaymentsService {
         throw error;
       }
       await this.markUnknown(payment.id);
-      throw new BadGatewayException('Payment registration outcome is unknown. Keep this purchase and confirm with support before trying another payment');
+      throw new DomainHttpException('PAYMENT_OUTCOME_UNKNOWN', 'Payment registration outcome is unknown. Keep this purchase and confirm with support before trying another payment');
     }
   }
 
@@ -187,7 +188,7 @@ export class PaymentsService {
   private assertBankAmount(payment: { id: string; amountMinor: bigint }, outcome: ProviderOutcome): void {
     if ((outcome.kind === 'captured' || outcome.kind === 'authorized') && outcome.amountMinor !== payment.amountMinor) {
       this.logger.error(`payment ${payment.id}: bank amount does not match the purchase; operator reconciliation required`);
-      throw new BadGatewayException('Bank amount does not match this payment; operator reconciliation required');
+      throw new DomainHttpException('PAYMENT_AMOUNT_MISMATCH', 'Bank amount does not match this payment; operator reconciliation required');
     }
   }
 

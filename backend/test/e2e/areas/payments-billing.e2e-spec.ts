@@ -179,6 +179,44 @@ describe('Payments and billing over HTTP (e2e)', () => {
     });
   });
 
+  describe('payment recovery feedback', () => {
+    const languages = [
+      { locale: 'en', noPayment: /do not pay again/iu, support: /contact support/iu },
+      { locale: 'ru', noPayment: /не платите повторно/iu, support: /обратитесь в поддержку/iu },
+      { locale: 'fr', noPayment: /ne payez pas à nouveau/iu, support: /contactez l’assistance/iu },
+      { locale: 'hy', noPayment: /կրկին մի վճարեք/iu, support: /դիմեք աջակցման ծառայությանը/iu },
+    ];
+    it.each(languages)('identifies an unknown registration outcome without suggesting another payment in $locale', async ({ locale, noPayment, support }) => {
+      const { authorization } = await owner();
+      await plan('managed', 25_000n);
+      const registration = jest.spyOn(fake, 'registerOrder').mockRejectedValueOnce(new Error('synthetic bank transport detail'));
+      try {
+        const { body } = await http().post('/api/v1/subscription')
+          .set('Authorization', authorization).set('Accept-Language', locale)
+          .send({ planKey: 'managed', provider: 'FAKE' }).expect(502);
+        expect(body).toMatchObject({ statusCode: 502, code: 'PAYMENT_OUTCOME_UNKNOWN', action: 'CONTACT_SUPPORT', locale,
+          message: 'Payment registration outcome is unknown. Keep this purchase and confirm with support before trying another payment', details: [] });
+        expect(body.userMessage).toMatch(noPayment);
+        expect(body.userMessage).toMatch(support);
+        expect(JSON.stringify(body)).not.toContain('synthetic bank transport detail');
+      } finally {
+        registration.mockRestore();
+      }
+    });
+
+    it.each(languages.flatMap((language) => (['authorized', 'captured'] as const).map((kind) => ({ ...language, kind }))))(
+      'identifies a mismatched $kind amount without suggesting another payment in $locale', async ({ locale, noPayment, support, kind }) => {
+        const orderNumber = await paidAtTheBank();
+        fake.simulate(`fake_${orderNumber}`, { kind, amountMinor: 20_001n });
+        const { body } = await http().post(`/api/v1/payments/${orderNumber}/confirm`).set('Accept-Language', locale).expect(502);
+        expect(body).toMatchObject({ statusCode: 502, code: 'PAYMENT_AMOUNT_MISMATCH', action: 'CONTACT_SUPPORT', locale,
+          message: 'Bank amount does not match this payment; operator reconciliation required', details: [] });
+        expect(body.userMessage).toMatch(noPayment);
+        expect(body.userMessage).toMatch(support);
+      },
+    );
+  });
+
   describe('answering as the fake bank, for local development', () => {
     const unpaidPayment = async () => {
       const organization = await prisma.organization.create({ data: { name: 'Payer Org', kind: 'HOST' } });

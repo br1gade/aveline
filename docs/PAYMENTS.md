@@ -145,6 +145,14 @@ so nothing newer was ever asked about. An overdue `CREATED` claim with no
 registration marker/reference can expire atomically. One whose registration
 may have started stays unresolved for bank or operator recovery.
 
+The HTTP boundary identifies uncertain registration as `502 PAYMENT_OUTCOME_UNKNOWN`
+and an authorized/captured bank amount mismatch as `502 PAYMENT_AMOUNT_MISMATCH`.
+Both use `action: CONTACT_SUPPORT`, with localized `userMessage` and the existing
+English `message` retained for compatibility. Clients must keep the purchase and
+must not offer another payment or automatically retry based on either refusal.
+The codes classify these existing outcomes; they do not settle a payment or
+authorize replacement. See [API.md](API.md) for the error contract.
+
 **A status the adapter cannot read is pending, never failed.** Only a definite
 bank decline resolves a failed attempt. An unknown orderStatus, a bank error instead of a status, or a payment
 still being paid used to be written off for good; now only an explicit

@@ -24,6 +24,8 @@ export const DOMAIN_ERRORS = {
   STAFF_SELF_CHANGE: { status: 409, action: 'EDIT' },
   LOGIN_TOO_MANY_ATTEMPTS: { status: 429, action: 'WAIT' },
   PAYMENTS_DISABLED: { status: 403, action: 'WAIT' },
+  PAYMENT_OUTCOME_UNKNOWN: { status: 502, action: 'CONTACT_SUPPORT' },
+  PAYMENT_AMOUNT_MISMATCH: { status: 502, action: 'CONTACT_SUPPORT' },
   PAID_TICKETS_DISABLED: { status: 400, action: 'EDIT' },
   TEMPLATE_REVISION_CONFLICT: { status: 409, action: 'RELOAD' },
   TEMPLATE_OPEN_DRAFT_EXISTS: { status: 409, action: 'RELOAD' },
