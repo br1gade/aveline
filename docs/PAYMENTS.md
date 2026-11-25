@@ -152,6 +152,11 @@ English `message` retained for compatibility. Clients must keep the purchase and
 must not offer another payment or automatically retry based on either refusal.
 The codes classify these existing outcomes; they do not settle a payment or
 authorize replacement. See [API.md](API.md) for the error contract.
+Confirmation cannot establish an unpaid outcome from a quarantined `CREATED`,
+`FAILED` or `EXPIRED` row without a bank reference. It returns
+`PAYMENT_OUTCOME_UNKNOWN` until bank/operator recovery resolves that uncertainty,
+rather than returning a historical unpaid-looking status as confirmed. This
+does not change known captures or an audited proof that no registration exists.
 
 **A status the adapter cannot read is pending, never failed.** Only a definite
 bank decline resolves a failed attempt. An unknown orderStatus, a bank error instead of a status, or a payment

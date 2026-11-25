@@ -301,8 +301,14 @@ the client's reported results, not production-provider or native-language sign-o
 **FR-199 is implemented in this follow-up:** registration uncertainty returns
 `502 PAYMENT_OUTCOME_UNKNOWN`; an authorized/captured amount mismatch returns
 `502 PAYMENT_AMOUNT_MISMATCH`. Both carry `action: CONTACT_SUPPORT`. The client
-can replace its English-message matching with `code`; the existing English
-messages and HTTP statuses remain compatible. The API contract now also documents
+also receives `PAYMENT_OUTCOME_UNKNOWN` when confirming a quarantined
+`CREATED`, `FAILED` or `EXPIRED` payment without a bank reference; these historical
+statuses do not prove that nothing was charged while registration is unresolved.
+The client can replace its English-message matching with `code`. The pre-existing
+registration and amount-mismatch refusals retain their English messages and `502`
+statuses. **Breaking for the client:** the quarantined no-reference confirmation
+cases previously returned successfully; they now return `502 PAYMENT_OUTCOME_UNKNOWN`
+with the same uncertainty message the current client already handles. The API contract also documents
 the access-review reasons `LAST_OWNER_CLOSURE` and `INACTIVE_OWNER_RECOVERY`.
 
 Remaining **backend feature work** is FR-110(d), bank-return invoice correlation,

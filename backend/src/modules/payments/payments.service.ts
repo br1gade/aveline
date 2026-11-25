@@ -32,6 +32,8 @@ const MONEY_HELD_STATUSES: readonly PaymentStatus[] = [PaymentStatus.AUTHORIZED,
 
 /** Ends we record when no money moved; EXPIRED is our own clock's, never the bank's. */
 const ENDED_WITHOUT_MONEY_STATUSES: readonly PaymentStatus[] = [PaymentStatus.FAILED, PaymentStatus.CANCELLED, PaymentStatus.EXPIRED];
+const UNKNOWN_REGISTRATION_STATUSES: readonly PaymentStatus[] = [PaymentStatus.CREATED, PaymentStatus.FAILED, PaymentStatus.EXPIRED];
+const UNKNOWN_REGISTRATION_MESSAGE = 'Payment registration outcome is unknown. Keep this purchase and confirm with support before trying another payment';
 
 /** How long a loser of the idempotency race waits for the winner's result. */
 const REGISTRATION_WAIT_MS = 50;
@@ -104,7 +106,7 @@ export class PaymentsService {
         throw error;
       }
       await this.markUnknown(payment.id);
-      throw new DomainHttpException('PAYMENT_OUTCOME_UNKNOWN', 'Payment registration outcome is unknown. Keep this purchase and confirm with support before trying another payment');
+      throw new DomainHttpException('PAYMENT_OUTCOME_UNKNOWN', UNKNOWN_REGISTRATION_MESSAGE);
     }
   }
 
@@ -124,7 +126,7 @@ export class PaymentsService {
 
   private async markUnknown(paymentId: string): Promise<void> {
     try {
-      await this.prisma.payment.updateMany({ where: { id: paymentId, status: { in: [PaymentStatus.CREATED, PaymentStatus.FAILED, PaymentStatus.EXPIRED] } },
+      await this.prisma.payment.updateMany({ where: { id: paymentId, status: { in: [...UNKNOWN_REGISTRATION_STATUSES] } },
         data: { outcomeUnknownAt: new Date(), failureReason: 'Registration outcome unknown; operator reconciliation required' } });
     } catch {
       // The committed registration marker prevents another attempt even when storage is unavailable.
@@ -161,6 +163,7 @@ export class PaymentsService {
   async confirm(orderNumber: string, source: PaymentEventSource) {
     const payment = await this.prisma.payment.findUnique({ where: { orderNumber } });
     if (!payment) throw new NotFoundException(`No payment ${orderNumber}`);
+    if (hasUnknownRegistration(payment)) throw new DomainHttpException('PAYMENT_OUTCOME_UNKNOWN', UNKNOWN_REGISTRATION_MESSAGE);
     if ((isSettled(payment.status) && !canRecoverPayment(payment)) || !payment.providerRef) return this.describe(payment);
 
     const status = await this.gateways.get(payment.provider).getStatus(payment.providerRef);
@@ -567,6 +570,10 @@ export class PaymentsService {
       failureReason: payment.failureReason,
     };
   }
+}
+
+function hasUnknownRegistration(payment: { status: PaymentStatus; providerRef: string | null; outcomeUnknownAt: Date | null }): boolean {
+  return !payment.providerRef && payment.outcomeUnknownAt != null && UNKNOWN_REGISTRATION_STATUSES.includes(payment.status);
 }
 
 function bankFields(to: PaymentStatus, extra: { providerRef?: string; redirectUrl?: string; refundedMinor?: bigint }) {

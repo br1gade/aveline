@@ -2373,6 +2373,12 @@ Use `code` rather than matching English `message` text. Both retain their existi
 HTTP status and English `message`; `userMessage` is localized in English, Russian,
 French or Armenian. Neither refusal permits another payment or an automatic
 retry. Other upstream/proxy errors do not acquire these payment-specific codes.
+**Breaking for the client, 25 November 2026:** confirmation now returns
+`502 PAYMENT_OUTCOME_UNKNOWN` instead of a successful response for a quarantined
+`CREATED`, `FAILED` or `EXPIRED` attempt whose registration outcome is still
+unknown and which has no bank reference to check. Do not interpret such a legacy
+status as proof that nothing was charged. Verified unpaid outcomes and captured
+payments retain their existing confirmation behavior.
 **Nothing changes
 until the new invoice is paid**: the current plan and status stay as they are,
 and paying applies the invoice's plan with a period starting then. A paid

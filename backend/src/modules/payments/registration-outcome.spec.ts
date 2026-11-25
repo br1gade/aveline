@@ -11,7 +11,7 @@ const request = { organizationId: 'organization', purpose: PaymentPurpose.DEPOSI
 function fixture(status: PaymentStatus) {
   const row = { id: 'payment', ...request, orderNumber: 'AVL-OUTCOME', status,
     amountMinor: 25000n, refundedMinor: 0n, providerRef: 'reference' as string | null, redirectUrl: null,
-    failureReason: null, registrationStartedAt: new Date('2026-11-01T00:00:00Z'),
+    failureReason: null, registrationStartedAt: new Date('2026-11-01T00:00:00Z') as Date | null,
     outcomeUnknownAt: new Date('2026-11-01T01:00:00Z') as Date | null, expiresAt: new Date('2026-11-01T01:00:00Z'),
     invoiceId: null, ticketOrderId: null };
   const payment = { findUnique: jest.fn().mockResolvedValue(row),
@@ -32,6 +32,30 @@ function fixture(status: PaymentStatus) {
 }
 
 describe('bank outcome remains authoritative after local uncertainty', () => {
+  it.each([PaymentStatus.CREATED, PaymentStatus.FAILED, PaymentStatus.EXPIRED])(
+    'refuses to confirm a no-reference %s attempt whose registration outcome is unknown', async (status) => {
+      const { service, row, gateway } = fixture(status);
+      row.providerRef = null;
+      await expect(service.confirm('AVL-OUTCOME', PaymentEventSource.API)).rejects.toMatchObject({ code: 'PAYMENT_OUTCOME_UNKNOWN', status: 502 });
+      expect(gateway.getStatus).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([PaymentStatus.FAILED, PaymentStatus.EXPIRED])('keeps a proven unpaid no-reference %s outcome', async (status) => {
+    const { service, row, gateway } = fixture(status);
+    row.providerRef = null;
+    row.outcomeUnknownAt = null;
+    if (status === PaymentStatus.EXPIRED) row.registrationStartedAt = null;
+    expect(await service.confirm('AVL-OUTCOME', PaymentEventSource.API)).toMatchObject({ status });
+    expect(gateway.getStatus).not.toHaveBeenCalled();
+  });
+
+  it('preserves a captured outcome when the missing reference needs operator recovery', async () => {
+    const { service, row } = fixture(PaymentStatus.CAPTURED);
+    row.providerRef = null;
+    expect(await service.confirm('AVL-OUTCOME', PaymentEventSource.API)).toMatchObject({ status: PaymentStatus.CAPTURED });
+  });
+
   it('keeps the captured balance after a partial refund without polling the bank again', async () => {
     const { service, row, gateway } = fixture(PaymentStatus.PARTIALLY_REFUNDED);
     row.refundedMinor = 1000n;
