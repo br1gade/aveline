@@ -2080,6 +2080,9 @@ model Subscription {
   pendingFreePlanId  String?
   pendingFreeTerms   Json?
   activeFreeTerms    Json?
+  billingAnchorAt DateTime?
+  currentPeriodInvoiceId String? @unique
+  currentPeriodInvoice Invoice? @relation("CurrentPaidPeriod", fields: [currentPeriodInvoiceId], references: [id], onDelete: SetNull, onUpdate: Cascade)
 
   /// Token the bank returns for a stored card. Recurring charges on Armenian
   /// gateways are card bindings, not a stored PAN — we never hold card data.
@@ -2093,7 +2096,7 @@ model Subscription {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   plan         Plan         @relation(fields: [planId], references: [id], onDelete: Restrict)
   pendingFreePlan Plan? @relation("ScheduledFreePlan", fields: [pendingFreePlanId], references: [id], onDelete: Restrict)
-  invoices     Invoice[]
+  invoices     Invoice[] @relation("SubscriptionInvoices")
 
   /// One live subscription per organization.
   @@unique([organizationId])
@@ -2121,6 +2124,13 @@ model Invoice {
   /// paid: overwriting the subscription at issue meant paying an old invoice
   /// activated whatever plan the row held by then.
   planId         String?
+
+  kind InvoiceKind @default(PURCHASE)
+  intervalSnapshot BillingInterval?
+  renewalAnchorEnd DateTime?
+  periodStart DateTime?
+  periodEnd DateTime?
+  activatedAt DateTime?
 
   /// Human-facing, sequential, and never reused — a legal requirement in
   /// most jurisdictions, including for Armenian corporate customers.
@@ -2150,10 +2160,11 @@ model Invoice {
   updatedAt DateTime @updatedAt
 
   organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  subscription Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+  subscription Subscription? @relation("SubscriptionInvoices", fields: [subscriptionId], references: [id], onDelete: SetNull)
   plan         Plan?         @relation(fields: [planId], references: [id], onDelete: SetNull)
   requestedBy User? @relation("InvoiceRequestedBy", fields: [requestedByUserId], references: [id], onDelete: SetNull, onUpdate: Cascade)
   paymentAttempts Payment[]
+  activeSubscription Subscription? @relation("CurrentPaidPeriod")
 
   @@index([organizationId, status])
   /// Settlement and refunds find an invoice by its payment.
@@ -2162,6 +2173,7 @@ model Invoice {
   @@index([status])
   @@index([organizationId, createdAt(sort: Desc), id(sort: Desc)])
   @@index([requestedByUserId])
+  @@index([subscriptionId, kind, status, periodStart])
   @@map("invoices")
 }
 
@@ -2179,6 +2191,11 @@ model InvoiceCounter {
   updatedAt DateTime @updatedAt
 
   @@map("invoice_counters")
+}
+
+enum InvoiceKind {
+  PURCHASE
+  RENEWAL
 }
 
 enum InvoiceStatus {
@@ -2834,7 +2851,7 @@ model DataSubjectRequestEnquirySubject {
 
 model RuntimeCompatibility {
   id String @id
-  minimumRevision Int @default(4)
+  minimumRevision Int @default(5)
   multiOrganizationWrites Boolean @default(false)
   @@map("runtime_compatibility")
 }

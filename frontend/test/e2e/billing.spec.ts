@@ -96,3 +96,61 @@ test.describe('a paid plan', () => {
     });
   }
 });
+
+test('manual early renewal reserves the next period and keeps current paid time', async ({
+  page,
+  host,
+  signedIn,
+  seen,
+}) => {
+  test.skip(!(await isDevelopmentStack()), NOT_DEVELOPMENT);
+  test.skip(!(await arePaymentsOn()), PAYMENTS_OFF);
+  const name = await planOnSale();
+  await signedIn(host.email);
+  await page.goto('/app/billing');
+  await page
+    .getByRole('listitem')
+    .filter({ hasText: name })
+    .getByRole('button', { name: 'Choose this plan' })
+    .click();
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Go to the bank' }).click();
+  await settleLatestReturn(page, seen.requests);
+  await page.getByRole('link', { name: 'To your plan and invoices' }).click();
+  const current = await must(host.api.GET('/api/v1/subscription'), 'read the first paid period');
+  await page.getByRole('button', { name: 'Renew plan' }).click();
+  const dialog = page.getByRole('alertdialog');
+  await expect(dialog).toContainText('This does not enable automatic charging');
+  await dialog.getByRole('button', { name: 'Continue to bank' }).click();
+  await settleLatestReturn(page, seen.requests);
+  await expect(
+    page.getByText('Payment received for your renewal.', { exact: false }),
+  ).toBeVisible();
+  await page.getByRole('link', { name: 'To your plan and invoices' }).click();
+  await expect(page.getByText(/^Next period paid:/u)).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Renew plan' })).toHaveCount(0);
+  const after = await must(host.api.GET('/api/v1/subscription'), 'read reserved renewal');
+  expect(after.subscription?.currentPeriodStart).toBe(current.subscription?.currentPeriodStart);
+  expect(after.subscription?.currentPeriodEnd).toBe(current.subscription?.currentPeriodEnd);
+  expect(after.subscription?.pendingRenewal?.end).toBe(after.subscription?.paidThrough);
+});
+
+async function settleLatestReturn(page: import('@playwright/test').Page, requests: string[]) {
+  await expect(page.getByText(/^The bank hasn’t confirmed this payment yet\./u)).toBeVisible({
+    timeout: 20_000,
+  });
+  const returned = requests.findLast((address) => address.includes('fakePayment=fake_'));
+  const orderNumber =
+    returned && new URL(returned).searchParams.get('fakePayment')?.replace(/^fake_/u, '');
+  if (!orderNumber) throw new Error('The fake bank did not return a payment');
+  await must(
+    apiAs().POST('/api/v1/payments/{orderNumber}/fake-bank', {
+      params: { path: { orderNumber } },
+      body: { outcome: 'PAID' },
+    }),
+    'settle at the fake bank',
+  );
+  await page.getByRole('button', { name: 'Check again' }).click();
+  await expect(
+    page.getByText(/Your payment is confirmed|Payment received for your renewal/u),
+  ).toBeVisible();
+}

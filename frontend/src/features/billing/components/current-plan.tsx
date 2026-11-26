@@ -29,7 +29,7 @@ export function CancelDialog({
     context,
     billingRefusalOf,
   );
-  const date = day(subscription.currentPeriodEnd);
+  const date = day(subscription.paidThrough ?? subscription.currentPeriodEnd);
   return (
     <AskFirstDialog
       onOpenChange={onOpenChange}
@@ -76,18 +76,19 @@ interface HeldPlanProps {
   subscription: Subscription;
   now: number;
   page: PageActions;
+  onRenew?: ((opener: MouseEvent<HTMLElement>) => void) | undefined;
   onCancel: (opener: MouseEvent<HTMLElement>) => void;
 }
 
-function HeldPlan({ subscription, now, page, onCancel }: HeldPlanProps) {
+function HeldPlan({ subscription, now, page, onCancel, onRenew }: HeldPlanProps) {
   const { t } = useTranslation('billing');
   const day = useBillingDay();
   const price = usePrice();
-  const { plan, currentPeriodEnd } = subscription;
+  const { plan } = subscription;
   const state = standing(subscription, now);
   const { refusal, isBusy, keep } = useKeep(page);
   const canWrite = useCan('billing:write');
-  const canCancel = canWrite && (state === 'active' || state === 'trial' || state === 'pastDue');
+  const canCancel = canWrite && ['active', 'trial', 'pastDue'].includes(state);
   const pending = subscription.pendingFree;
   return (
     <div className="border-border flex flex-col gap-3 border p-4">
@@ -95,14 +96,18 @@ function HeldPlan({ subscription, now, page, onCancel }: HeldPlanProps) {
         {plan.display.name}
       </p>
       <p className="m-0">{price(plan.priceMinor, plan.currency, plan.interval)}</p>
-      <p className="m-0">{t(`standing.${state}`, { date: day(currentPeriodEnd) })}</p>
+      <p className="m-0">
+        {t(`standing.${state}`, { date: day(standingDate(subscription, state)) })}
+      </p>
       {pending ? (
         <p className="m-0 font-medium">
           {t('current.movesToFree', { date: day(pending.effectiveAt) })}
         </p>
       ) : null}
+      <ReservedPeriod subscription={subscription} />
       {refusal ? <BillingProblem refusal={refusal} /> : null}
       <div className="flex flex-wrap gap-2">
+        {canWrite ? <RenewalAction subscription={subscription} onRenew={onRenew} /> : null}
         {canCancel ? (
           <Button variant="outline" className={WRAPPING_BUTTON} onClick={onCancel}>
             {t('current.cancel')}
@@ -127,11 +132,12 @@ interface CurrentPlanProps {
   read: BillingData['subscription'];
   now: number;
   page: PageActions;
+  onRenew?: ((subscription: Subscription, opener: MouseEvent<HTMLElement>) => void) | undefined;
   onCancel: (subscription: Subscription, opener: MouseEvent<HTMLElement>) => void;
 }
 
 /** What the organization has now; `null` means it has never subscribed, not an error. */
-export function CurrentPlan({ read, now, page, onCancel }: CurrentPlanProps) {
+export function CurrentPlan({ read, now, page, onCancel, onRenew }: CurrentPlanProps) {
   const { t } = useTranslation('billing');
   const body = () => {
     if (read.kind === 'refused') return <BillingProblem refusal={read.refusal} />;
@@ -142,6 +148,7 @@ export function CurrentPlan({ read, now, page, onCancel }: CurrentPlanProps) {
         subscription={held}
         now={now}
         page={page}
+        onRenew={onRenew ? (opener) => onRenew(held, opener) : undefined}
         onCancel={(opener) => onCancel(held, opener)}
       />
     );
@@ -154,4 +161,30 @@ export function CurrentPlan({ read, now, page, onCancel }: CurrentPlanProps) {
       {body()}
     </section>
   );
+}
+
+function standingDate(subscription: Subscription, state: ReturnType<typeof standing>) {
+  return state === 'ending'
+    ? (subscription.paidThrough ?? subscription.currentPeriodEnd)
+    : subscription.currentPeriodEnd;
+}
+
+function ReservedPeriod({ subscription }: { subscription: Subscription }) {
+  const { t } = useTranslation('billing');
+  const day = useBillingDay();
+  const reserved = subscription.pendingRenewal;
+  return reserved ? (
+    <p className="m-0 font-medium">
+      {t('current.renewalReserved', { start: day(reserved.start), end: day(reserved.end) })}
+    </p>
+  ) : null;
+}
+
+function RenewalAction({ subscription, onRenew }: Pick<HeldPlanProps, 'subscription' | 'onRenew'>) {
+  const { t } = useTranslation('billing');
+  return subscription.canRenew && onRenew ? (
+    <Button className={WRAPPING_BUTTON} onClick={onRenew}>
+      {t('current.renew')}
+    </Button>
+  ) : null;
 }

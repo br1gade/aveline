@@ -10,7 +10,9 @@
     "none": "Votre organisation n’a pas encore choisi de formule. Vous pouvez en choisir une ci-dessous.",
     "cancel": "Résilier à la fin de la période",
     "resume": "Conserver la formule",
-    "movesToFree": "Passe à l’offre gratuite le {{date}}."
+    "movesToFree": "Passe à l’offre gratuite le {{date}}.",
+    "renew": "Renouveler le forfait",
+    "renewalReserved": "Prochaine période payée : {{start}}–{{end}}."
   },
   "standing": {
     "active": "Active jusqu’au {{date}}.",
@@ -82,6 +84,11 @@
       "title": "Payer la facture {{name}} ?",
       "body": "{{price}}. Vous irez sur la page de la banque pour payer. Rien ne change tant que ce n’est pas payé.",
       "confirm": "Aller à la banque"
+    },
+    "renew": {
+      "title": "Renouveler {{name}} ?",
+      "body": "Payez {{price}} pour une période supplémentaire. Le paiement anticipé réserve la prochaine période et conserve la période déjà payée. Si elle est terminée, la nouvelle période commence à la confirmation du paiement. Aucun prélèvement automatique ne sera activé.",
+      "confirm": "Continuer vers la banque"
     }
   },
   "status": {
@@ -127,7 +134,9 @@
     "rateLimited": "Trop de demandes pour le moment. Attendez une minute, puis réessayez.",
     "noAnswer": "Nous n’avons pas reçu de réponse. Vérifiez votre connexion et réessayez.",
     "other": "Cela n’a pas pu être fait.",
-    "refunding": "Ce paiement est déjà en cours de remboursement. Vous n’avez rien à faire."
+    "refunding": "Ce paiement est déjà en cours de remboursement. Vous n’avez rien à faire.",
+    "renewalChanged": "La facturation a changé. Rechargez la page et vérifiez les périodes payées.",
+    "reservedPaid": "Votre prochaine période est déjà payée. Pour changer de forfait payant maintenant, contactez l’assistance afin de rembourser cette période future."
   },
   "chooseOrganization": "Choisir une organisation",
   "return": {
@@ -144,7 +153,8 @@
     "payAgain": "Payer à nouveau",
     "toBilling": "Vers votre formule et vos factures",
     "replacedOpen": "Cette facture a été remplacée par un choix de formule plus récent. Si vous l’avez payée à la banque, cet argent vous revient de lui-même. Vous n’avez rien à faire.",
-    "refunded": "Cette facture a été retirée, et ce qui a été payé vous est remboursé."
+    "refunded": "Cette facture a été retirée, et ce qui a été payé vous est remboursé.",
+    "renewalPaid": "Le paiement du renouvellement a été reçu. La période achetée figure dans la facturation."
   },
   "pricing": {
     "title": "Tarifs",

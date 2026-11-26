@@ -69,6 +69,72 @@ describe('Billing (e2e)', () => {
       },
     });
 
+
+  describe('manual renewal HTTP contract', () => {
+    async function renewableOwner() {
+      const account = await owner();
+      const paid = await plan('renew-http', 5000n);
+      const subscription = await prisma.subscription.create({ data: { organizationId: account.organizationId, planId: paid.id,
+        status: 'ACTIVE', currentPeriodStart: new Date('2026-01-01'), currentPeriodEnd: new Date('2030-01-01') } });
+      return { ...account, subscription };
+    }
+    const renewalBody = (end: Date) => ({ provider: 'FAKE', expectedPeriodEnd: end.toISOString(), expectedPriceMinor: '5000', expectedCurrency: 'AMD', expectedInterval: 'MONTHLY' });
+    it('names malformed quote fields and commits no invoice', async () => {
+      const account = await renewableOwner();
+      const { body } = await http().post('/api/v1/subscription/renew').set('Authorization', account.authorization)
+        .send({ ...renewalBody(account.subscription.currentPeriodEnd), expectedPeriodEnd: 'yesterday', expectedPriceMinor: '-1' }).expect(400);
+      expect(body.message).toEqual(expect.arrayContaining([expect.stringContaining('expectedPeriodEnd')]));
+      expect(body.message).toEqual(expect.arrayContaining([expect.stringContaining('expectedPriceMinor')]));
+      expect(await prisma.invoice.count()).toBe(0);
+    });
+    it('returns stable quote conflict codes and the exact invoice retry pointer', async () => {
+      const account = await renewableOwner();
+      const { body: changed } = await http().post('/api/v1/subscription/renew').set('Authorization', account.authorization)
+        .send({ ...renewalBody(account.subscription.currentPeriodEnd), expectedPriceMinor: '1' }).expect(409);
+      expect(changed).toMatchObject({ code: 'RENEWAL_QUOTE_CHANGED', action: 'RELOAD' });
+      const { body } = await http().post('/api/v1/subscription/renew').set('Authorization', account.authorization)
+        .send(renewalBody(account.subscription.currentPeriodEnd)).expect(201);
+      expect(body.invoice).toMatchObject({ kind: 'RENEWAL', renewalAnchorEnd: account.subscription.currentPeriodEnd.toISOString(), periodStart: null });
+      const { body: retry } = await http().post(`/api/v1/invoices/${body.invoice.number}/pay`).set('Authorization', account.authorization).send({ provider: 'FAKE' }).expect(201);
+      expect(retry.invoice.number).toBe(body.invoice.number);
+      expect(retry.invoice.paymentOrderNumber).toBe(retry.payment.orderNumber);
+      const payment = await prisma.payment.findUniqueOrThrow({ where: { orderNumber: retry.payment.orderNumber as string } });
+      expect(new URL(payment.returnUrl ?? '').searchParams.get('invoice')).toBe(body.invoice.number);
+      expect(new URL(payment.returnUrl ?? '').searchParams.get('organization')).toBe(account.organizationId);
+    });
+
+    it('refuses paid renewal and invoice retry in pilot mode before issuing records', async () => {
+      const account = await renewableOwner();
+      const previous = process.env.PILOT_MODE;
+      process.env.PILOT_MODE = 'true';
+      try {
+        for (const route of ['/api/v1/subscription/renew', '/api/v1/invoices/AV-2026-000001/pay']) {
+          const body = route.endsWith('/renew') ? renewalBody(account.subscription.currentPeriodEnd) : { provider: 'FAKE' };
+          const response = await http().post(route).set('Authorization', account.authorization).send(body).expect(403);
+          expect(response.body).toMatchObject({ code: 'PAYMENTS_DISABLED' });
+        }
+        expect(await prisma.invoice.count()).toBe(0);
+      } finally {
+        if (previous === undefined) delete process.env.PILOT_MODE;
+        else process.env.PILOT_MODE = previous;
+      }
+    });
+
+    it('requires organization billing permission on both new actions', async () => {
+      const { eventId } = await seedEvent(prisma);
+      const { authorization } = await authenticateAs(app, prisma, { eventId, role: EventRole.COORDINATOR });
+      await http().post('/api/v1/subscription/renew').set('Authorization', authorization).send(renewalBody(new Date('2030-01-01'))).expect(403);
+      await http().post('/api/v1/invoices/AV-2026-000001/pay').set('Authorization', authorization).send({ provider: 'FAKE' }).expect(403);
+    });
+    it('cannot renew or retry another organization invoice', async () => {
+      const account = await renewableOwner();
+      const other = await owner();
+      await http().post('/api/v1/subscription/renew').set('Authorization', other.authorization).set('x-aveline-organization-id', account.organizationId)
+        .send(renewalBody(account.subscription.currentPeriodEnd)).expect(403);
+      const { body } = await http().post('/api/v1/subscription/renew').set('Authorization', account.authorization).send(renewalBody(account.subscription.currentPeriodEnd)).expect(201);
+      await http().post(`/api/v1/invoices/${body.invoice.number}/pay`).set('Authorization', other.authorization).send({ provider: 'FAKE' }).expect(404);
+    });
+  });
   describe('becoming a tenant', () => {
     it('creates an organization and makes the caller its owner', async () => {
       const { authorization } = await authenticateAs(app, prisma);

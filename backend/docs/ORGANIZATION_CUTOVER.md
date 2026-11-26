@@ -1,23 +1,23 @@
 # Organization context cutover
 
-Revision 4 shared-reader compatibility is implemented; additional memberships default off.
+Revision 5 shared-reader compatibility is implemented; additional memberships default off.
 The automatic migration retains `organization_memberships_userId_key`. This is
 an operator-controlled activation step, not a deployment side effect.
 
-The shared floor is now revision 4 for the combined F38/F39/F44 and durable
-payment readers. Forward migrations raise the existing floor/default to 4;
+The shared floor is now revision 5 for the combined F38/F39/F44 and durable
+payment and manual renewal readers. Forward migrations raise the existing floor/default to 5;
 they preserve an already-activated multiOrganizationWrites value. Current
 readers refuse a missing gate or a future floor. Earlier binaries refuse floor
-4 when they start or next check a membership write. The operator cutover tool
+5 when they start or next check a membership write. The operator cutover tool
 loads the compiled reader revision and requires evidence for that revision;
-old revision-3 evidence is not sufficient.
+old revision-4 evidence is not sufficient.
 
 Before the **payment safety migration or any F39/F44 activation**, exclude already-running
 older API replicas, standalone workers, schedulers and maintenance readers, even
 when second memberships stay disabled and the old unique index remains. Close
 traffic, verify build/process/session inventory, revoke old deployment credentials
 and terminate its sessions if exclusion cannot otherwise be proven. Start only
-revision-4 processes and verify their startup checks. Raising the database floor
+revision-5 processes and verify their startup checks. Raising the database floor
 does not stop an old process that has already passed startup. This reader-exclusion
 gate is separate from membership cutover and every feature's other acceptance gates.
 
@@ -27,14 +27,14 @@ gate is separate from membership cutover and every feature's other acceptance ga
 2. Stop API, job/scheduler and maintenance traffic; exclude old binaries, database
    credentials and existing old deployment sessions. Record process/image inventory.
    Never terminate unrelated local or production sessions through an agent task.
-3. Supply a local JSON evidence file with revision 4 and true values for
+3. Supply a local JSON evidence file with revision 5 and true values for
    readerWriterInventory, raceTests, populatedMigration, restoreRehearsal,
    fourLanguageTabAcceptance, oldRuntimeExclusion. This file is operator evidence,
    not a source-controlled automatic assertion that the gates were completed.
 4. Inspect with `node scripts/organization-cutover.mjs inspect`. With writes false,
    run `drop-single-membership-index` with ORGANIZATION_CUTOVER_MAINTENANCE=confirmed
    and ORGANIZATION_CUTOVER_EVIDENCE_FILE pointing to that reviewed file.
-5. Start only revision-4 processes; smoke/regression checks precede the separate
+5. Start only revision-5 processes; smoke/regression checks precede the separate
    `enable-writes` action. Every create/join locks and reads the shared gate.
    Remove the user-only @unique annotation in the deployment schema when adopting
    the cutover; retain the composite user/organization uniqueness and lower-email

@@ -348,7 +348,7 @@ rewritten just to permit retries. A unique `(provider, providerRef)` constraint
 prevents one bank order belonging to two attempts. Its forward migration aborts
 on duplicate non-null legacy references: reconcile against bank evidence before
 retrying, without deleting or guessing which financial record should survive.
-Reader floor **4** excludes earlier writers:
+Reader floor **5** excludes earlier writers:
 stop all APIs, schedulers, workers and maintenance writers before migration,
 then start only compatible images. A pre-floor process that already started
 does not stop merely because the floor was raised. See
@@ -429,10 +429,17 @@ confirming it commits inventory and issues tickets. Ticketing calls payments
 rather than the reverse, so payments stays ignorant of what it is paying for.
 See [PRODUCT_SPEC.md](PRODUCT_SPEC.md) §13.
 
+Manual subscription renewal (decided 26 November 2026) uses the same hosted
+registration, confirmation, reconciliation and refund path, with an explicit
+customer payment for each period. Early payment reserves the next full period;
+late payment begins at settlement. No saved-card authorization is collected.
+The invoice and organization in the return address select authenticated records;
+only server-to-server confirmation proves payment. See [API billing](API.md#manual-renewal-and-invoice-return-26-november-2026).
+
 ## 8. Not yet built
 
-- **Subscription renewal and dunning.** Plan selection, first-period invoice
-  charging and settlement are built outside pilot mode; automatic renewal and
+- **Automatic subscription renewal and dunning.** Manual renewal, exact invoice
+  returns and reserved next-period settlement are built outside pilot mode; automatic renewal and
   dunning are not. `Subscription.bindingRef` is reserved for a stored-card token;
   no flow obtains one yet. Recurring charges on these gateways mean **card binding** —
   the bank holds the card and returns a token — which is a different API

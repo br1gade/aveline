@@ -50,12 +50,25 @@ function useChoices(data: BillingData) {
   });
   const ofInvoice = (invoice: Invoice, planKey: string): Choice => ({
     planKey,
+    invoiceNumber: invoice.number,
     name: invoice.number,
     price: formatMinor(invoice.totalMinor, invoice.currency, i18n.language),
     kind: 'pay',
     provider,
   });
-  return { current, ofPlan, ofInvoice };
+  const ofRenewal = (subscription: Subscription): Choice => ({
+    planKey: subscription.plan.key,
+    name: subscription.plan.display.name,
+    price: price(
+      subscription.plan.priceMinor,
+      subscription.plan.currency,
+      subscription.plan.interval,
+    ),
+    kind: 'renew',
+    renewal: subscription,
+    provider,
+  });
+  return { current, ofPlan, ofInvoice, ofRenewal };
 }
 
 /**
@@ -69,7 +82,7 @@ export function BillingPage({ data }: BillingPageProps) {
   const { dialog, open, close, restoreFocus } = useOpenDialog();
   const [isPilot, setIsPilot] = useState(false);
   const onPilot = useCallback(() => setIsPilot(true), []);
-  const { current, ofPlan, ofInvoice } = useChoices(data);
+  const { current, ofPlan, ofInvoice, ofRenewal } = useChoices(data);
   const { isPaymentAvailable } = data.payment;
   const context = { page, onClose: close, restoreFocus };
   return (
@@ -87,6 +100,12 @@ export function BillingPage({ data }: BillingPageProps) {
         read={data.subscription}
         now={data.now}
         page={page}
+        onRenew={
+          isPaymentAvailable
+            ? (subscription, opener) =>
+                open({ kind: 'choose', choice: ofRenewal(subscription) }, opener)
+            : undefined
+        }
         onCancel={(subscription, opener) => open({ kind: 'cancel', subscription }, opener)}
       />
       <PlanList

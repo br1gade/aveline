@@ -42,6 +42,7 @@ export async function applyScheduledFree(tx: Prisma.TransactionClient, organizat
     data: {
       ...CLEAR_SCHEDULED_FREE,
       activeFreeTerms: terms,
+      currentPeriodInvoiceId: null, billingAnchorAt: null,
       planId: scheduled.pendingFreePlanId,
       status: SubscriptionStatus.ACTIVE,
       currentPeriodStart: period.start,

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useRevalidator } from 'react-router';
+import { useMatches, useRevalidator } from 'react-router';
 
 /** What a page's panels need from it after an action. */
 export interface PageActions {
@@ -26,7 +26,7 @@ interface Done {
  * draft's panel, and the button pressed is often gone by then.
  */
 export function usePageStatus(data: unknown) {
-  const { revalidate } = useRevalidator();
+  const { revalidate, state } = useRevalidator();
   const [done, setDone] = useState<Done | null>(null);
   const statusRef = useRef<HTMLParagraphElement>(null);
   const status = done !== null && data !== done.before ? done.message : '';
@@ -42,11 +42,55 @@ export function usePageStatus(data: unknown) {
     [revalidate, data],
   );
   const reload = useCallback(() => void revalidate(), [revalidate]);
-  const reloadAndWait = useCallback(() => revalidate(), [revalidate]);
+  const reloadAndWait = useReloadAndWait(revalidate, state);
   const focusStatus = useCallback((closing: Event) => {
     closing.preventDefault();
     statusRef.current?.focus();
   }, []);
   const page: PageActions = { done: announce, reload, reloadAndWait, focusStatus };
   return { page, status, statusRef };
+}
+
+interface ReloadCommit {
+  before: ReturnType<typeof useMatches>;
+  resolve: () => void;
+}
+
+/** Router resolves revalidate before React commits; retries need the committed route snapshot. */
+function useReloadAndWait(revalidate: PageActions['reloadAndWait'], state: 'idle' | 'loading') {
+  const matches = useMatches();
+  const pending = useRef(new Set<ReloadCommit>());
+  const isMounted = useRef(true);
+  useEffect(() => {
+    if (state !== 'idle') return;
+    for (const waiting of pending.current) {
+      if (waiting.before !== matches) {
+        pending.current.delete(waiting);
+        waiting.resolve();
+      }
+    }
+  }, [matches, state]);
+  useEffect(() => {
+    isMounted.current = true;
+    const waiting = pending.current;
+    return () => {
+      isMounted.current = false;
+      for (const request of waiting) request.resolve();
+      waiting.clear();
+    };
+  }, []);
+  return useCallback(async () => {
+    if (!isMounted.current) return;
+    const waiting: ReloadCommit = { before: matches, resolve: () => undefined };
+    const committed = new Promise<void>((resolve) => {
+      waiting.resolve = resolve;
+    });
+    pending.current.add(waiting);
+    try {
+      await revalidate();
+      await committed;
+    } finally {
+      pending.current.delete(waiting);
+    }
+  }, [matches, revalidate]);
 }

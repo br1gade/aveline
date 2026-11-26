@@ -43,19 +43,21 @@ export async function loadBilling(api: ApiClient): Promise<BillingData> {
 
 export type ReturnRead =
   | { kind: 'nothing' }
-  | { kind: 'confirmed'; invoice: Invoice }
+  | { kind: 'confirmed'; invoice: Invoice; organizationId?: string }
   | { kind: 'refused'; refusal: BillingRefusal };
 
-/**
- * The bank's return names no invoice (the return address is sent before one exists), and at most
- * one plan invoice is open, newest first (`subscribe`, `voidOpenInvoices`), so the newest is the one
- * just paid for. Nothing is stored and no number goes in an address (design PD-130, FR-110).
- */
-export async function confirmNewestInvoice(api: ApiClient): Promise<ReturnRead> {
+/** Correlation selects an authenticated invoice; server-to-server confirmation proves payment. */
+export async function confirmReturnedInvoice(
+  api: ApiClient,
+  context: { number: string; organizationId: string } | null,
+): Promise<ReturnRead> {
+  if (!context) return { kind: 'nothing' };
   try {
-    const [newest] = (await listInvoices(api, { limit: 1 })).items;
-    if (!newest) return { kind: 'nothing' };
-    return { kind: 'confirmed', invoice: await confirmInvoice(api, newest.number) };
+    return {
+      kind: 'confirmed',
+      invoice: await confirmInvoice(api, context.number, context.organizationId),
+      organizationId: context.organizationId,
+    };
   } catch (error) {
     return { kind: 'refused', refusal: billingRefusalOf(error) };
   }

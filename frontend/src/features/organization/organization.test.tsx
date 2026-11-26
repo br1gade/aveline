@@ -484,7 +484,9 @@ describe('changing what a member may do', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Change role' }));
     await within(dialog).findByRole('alert');
     await waitFor(() => expect(reads.members).toBeGreaterThan(1));
-    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    const cancel = within(dialog).getByRole('button', { name: 'Cancel' });
+    await waitFor(() => expect(cancel).toBeEnabled());
+    await user.click(cancel);
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     await waitFor(() => expect(document.activeElement).not.toBe(document.body));
   });

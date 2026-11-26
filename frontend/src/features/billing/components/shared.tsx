@@ -24,7 +24,7 @@ export function BillingProblem({ refusal }: { refusal: BillingRefusal }) {
         requestId={'requestId' in refusal ? refusal.requestId : undefined}
       />
       {/* Only staff can settle it, so whom to contact comes with it (docs/API.md §6; design C-54). */}
-      {refusal.kind === 'uncertain' ? (
+      {refusal.kind === 'uncertain' || refusal.kind === 'reservedPaid' ? (
         <SupportContacts linkClassName="text-primary underline underline-offset-4" />
       ) : null}
       {refusal.kind === 'chooseOrganization' ? (

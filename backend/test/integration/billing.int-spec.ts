@@ -1,4 +1,5 @@
 import { BillingInterval, PaymentProvider, PlanTier, PrismaClient, SubscriptionStatus } from '@prisma/client';
+import { captureInvitationLifetime } from '../../src/modules/invitations/lifetime';
 import { nextInvoiceSequence } from '../../src/modules/billing/invoice-number';
 import { SubscriptionsService } from '../../src/modules/billing/subscriptions.service';
 import { PaymentGatewayRegistry } from '../../src/modules/payments/payment-gateway.registry';
@@ -396,4 +397,206 @@ describe('billing (integration)', () => {
       expect(resumed.cancelledAt).toBeNull();
     });
   });
+  describe('manual renewal', () => {
+    async function buyPeriod() {
+      await plan({ key: 'renewable', priceMinor: 5000n });
+      const choice = await subscriptions.subscribe(organizationId, { planKey: 'renewable', provider: PaymentProvider.FAKE });
+      fake.simulateSuccess(`fake_${choice.invoice!.paymentOrderNumber}`);
+      await subscriptions.confirmPayment(organizationId, choice.invoice!.number);
+      return prisma.subscription.findUniqueOrThrow({ where: { organizationId } });
+    }
+    const quote = (end: Date) => ({ provider: PaymentProvider.FAKE, expectedPeriodEnd: end.toISOString(),
+      expectedPriceMinor: '5000', expectedCurrency: 'AMD', expectedInterval: BillingInterval.MONTHLY });
+    it('concurrent early renewal reserves one next period without changing current coverage', async () => {
+      const current = await buyPeriod();
+      const choices = await Promise.all([subscriptions.renew(organizationId, quote(current.currentPeriodEnd)),
+        subscriptions.renew(organizationId, quote(current.currentPeriodEnd))]);
+      expect(choices[0].invoice.number).toBe(choices[1].invoice.number);
+      const invoice = choices[0].invoice;
+      fake.simulateSuccess(`fake_${invoice.paymentOrderNumber}`);
+      await subscriptions.confirmPayment(organizationId, invoice.number);
+      const after = await prisma.subscription.findUniqueOrThrow({ where: { organizationId } });
+      expect(after.currentPeriodStart).toEqual(current.currentPeriodStart);
+      expect(after.currentPeriodEnd).toEqual(current.currentPeriodEnd);
+      const read = await subscriptions.current(organizationId);
+      expect(read.subscription?.pendingRenewal?.number).toBe(invoice.number);
+      expect(read.subscription?.paidThrough).toEqual((await prisma.invoice.findUniqueOrThrow({ where: { number: invoice.number } })).periodEnd);
+      expect((await subscriptions.renew(organizationId, quote(current.currentPeriodEnd))).invoice.number).toBe(invoice.number);
+    });
+
+    async function prepayRenewal() {
+      const current = await buyPeriod();
+      const choice = await subscriptions.renew(organizationId, quote(current.currentPeriodEnd));
+      fake.simulateSuccess(`fake_${choice.invoice.paymentOrderNumber}`);
+      await subscriptions.confirmPayment(organizationId, choice.invoice.number);
+      return { current, invoice: await prisma.invoice.findUniqueOrThrow({ where: { number: choice.invoice.number } }) };
+    }
+    it('refunding a reserved renewal leaves the current purchased period intact', async () => {
+      const { current, invoice } = await prepayRenewal();
+      await payments.refundNonTicket(invoice.paymentOrderNumber!, invoice.totalMinor);
+      const after = await prisma.subscription.findUniqueOrThrow({ where: { id: current.id } });
+      expect(after.status).toBe('ACTIVE');
+      expect(after.currentPeriodEnd).toEqual(current.currentPeriodEnd);
+      expect((await subscriptions.current(organizationId)).subscription?.pendingRenewal).toBeNull();
+    });
+    it('activates a reserved period once at the boundary and keeps cancellation at the purchased end', async () => {
+      const { current, invoice } = await prepayRenewal();
+      await subscriptions.cancel(organizationId);
+      await subscriptions.applyDueFreeChanges(current.currentPeriodEnd);
+      await subscriptions.applyDueFreeChanges(current.currentPeriodEnd);
+      const after = await prisma.subscription.findUniqueOrThrow({ where: { id: current.id } });
+      expect(after.currentPeriodInvoiceId).toBe(invoice.id);
+      expect(after.currentPeriodStart).toEqual(invoice.periodStart);
+      expect(after.currentPeriodEnd).toEqual(invoice.periodEnd);
+      expect(after.cancelAtPeriodEnd).toBe(true);
+    });
+    it('schedules Free after prepaid coverage and rejects an immediate paid change', async () => {
+      const { current, invoice } = await prepayRenewal();
+      await plan({ key: 'free-after-renewal', priceMinor: 0n });
+      const free = await subscriptions.subscribe(organizationId, { planKey: 'free-after-renewal' });
+      expect(free.subscription?.pendingFree?.effectiveAt).toEqual(invoice.periodEnd);
+      await expect(subscriptions.subscribe(organizationId, { planKey: 'renewable', provider: PaymentProvider.FAKE })).rejects.toThrow('paid renewal');
+      expect((await prisma.subscription.findUniqueOrThrow({ where: { id: current.id } })).currentPeriodEnd).toEqual(current.currentPeriodEnd);
+    });
+    it('voids unpaid renewal on cancel and compensates a later capture', async () => {
+      const current = await buyPeriod();
+      const choice = await subscriptions.renew(organizationId, quote(current.currentPeriodEnd));
+      await subscriptions.cancel(organizationId);
+      fake.simulateSuccess(`fake_${choice.invoice.paymentOrderNumber}`);
+      await subscriptions.confirmPayment(organizationId, choice.invoice.number);
+      expect((await prisma.payment.findUniqueOrThrow({ where: { orderNumber: choice.invoice.paymentOrderNumber! } })).status).toBe('REFUNDED');
+      expect((await prisma.subscription.findUniqueOrThrow({ where: { id: current.id } })).currentPeriodEnd).toEqual(current.currentPeriodEnd);
+    });
+    it('refunds the active purchase even when a later future period has been paid', async () => {
+      const { current, invoice } = await prepayRenewal();
+      const active = await prisma.invoice.findUniqueOrThrow({ where: { id: current.currentPeriodInvoiceId! } });
+      await payments.refundNonTicket(active.paymentOrderNumber!, active.totalMinor);
+      expect((await prisma.subscription.findUniqueOrThrow({ where: { id: current.id } })).status).toBe('CANCELLED');
+      expect((await prisma.invoice.findUniqueOrThrow({ where: { id: invoice.id } })).status).toBe('PAID');
+      await subscriptions.applyDueFreeChanges(invoice.periodStart!);
+      expect((await prisma.subscription.findUniqueOrThrow({ where: { id: current.id } })).currentPeriodInvoiceId).toBe(invoice.id);
+    });
+    it('keeps reserved coverage while a full refund is unresolved and recovers a completed refund', async () => {
+      const { current, invoice } = await prepayRenewal();
+      const payment = await prisma.payment.findUniqueOrThrow({ where: { orderNumber: invoice.paymentOrderNumber! } });
+      await prisma.payment.update({ where: { id: payment.id }, data: { status: 'REFUNDED', refundedMinor: payment.amountMinor } });
+      const refund = await prisma.refund.create({ data: { paymentId: payment.id, amountMinor: payment.amountMinor, currency: payment.currency } });
+      await subscriptions.endRefundedPlan({ orderNumber: payment.orderNumber, status: 'REFUNDED' });
+      await subscriptions.applyDueFreeChanges(invoice.periodStart!);
+      expect((await prisma.invoice.findUniqueOrThrow({ where: { id: invoice.id } })).activatedAt).toBeNull();
+      expect((await prisma.invoice.findUniqueOrThrow({ where: { id: invoice.id } })).status).toBe('PAID');
+      await prisma.refund.update({ where: { id: refund.id }, data: { status: 'COMPLETED', completedAt: new Date() } });
+      await subscriptions.recoverRefundedInvoices();
+      expect((await prisma.invoice.findUniqueOrThrow({ where: { id: invoice.id } })).status).toBe('VOID');
+      expect((await prisma.subscription.findUniqueOrThrow({ where: { id: current.id } })).currentPeriodEnd).toEqual(current.currentPeriodEnd);
+    });
+
+    it('refuses an existing invoice when the displayed renewal quote changes', async () => {
+      const current = await buyPeriod();
+      await subscriptions.renew(organizationId, quote(current.currentPeriodEnd));
+      await prisma.plan.update({ where: { id: current.planId }, data: { priceMinor: 4000n } });
+      await expect(subscriptions.renew(organizationId, { ...quote(current.currentPeriodEnd), expectedPriceMinor: '4000' })).rejects.toThrow('quote');
+      expect(await prisma.invoice.count({ where: { kind: 'RENEWAL' } })).toBe(1);
+    });
+    it('cannot charge the same cycle again after cancel/resume while an old payment is unresolved', async () => {
+      const current = await buyPeriod();
+      const choice = await subscriptions.renew(organizationId, quote(current.currentPeriodEnd));
+      await prisma.payment.update({ where: { orderNumber: choice.invoice.paymentOrderNumber! }, data: { status: 'FAILED', outcomeUnknownAt: new Date(), providerRef: null } });
+      await subscriptions.cancel(organizationId);
+      await subscriptions.resume(organizationId);
+      await expect(subscriptions.renew(organizationId, quote(current.currentPeriodEnd))).rejects.toThrow('do not pay again');
+      expect(await prisma.invoice.count({ where: { kind: 'RENEWAL' } })).toBe(1);
+    });
+    it('moves scheduled Free back to the remaining paid end after refunding a future renewal', async () => {
+      const { current, invoice } = await prepayRenewal();
+      await plan({ key: 'free-after-refund', priceMinor: 0n });
+      await subscriptions.subscribe(organizationId, { planKey: 'free-after-refund' });
+      await payments.refundNonTicket(invoice.paymentOrderNumber!, invoice.totalMinor);
+      const after = await prisma.subscription.findUniqueOrThrow({ where: { id: current.id } });
+      expect(after.pendingFreeAt).toEqual(current.currentPeriodEnd);
+      expect(after.currentPeriodEnd).toEqual(current.currentPeriodEnd);
+    });
+
+    it('rotates bounded maintenance past blocked reservations instead of starving later periods', async () => {
+      const paid = await plan({ key: 'sweep-progress', priceMinor: 5000n });
+      const ids = Array.from({ length: 100 }, (_, index) => `a-blocked-${String(index).padStart(3, '0')}`);
+      await prisma.organization.createMany({ data: [...ids, 'z-due'].map((id) => ({ id, name: id })) });
+      await prisma.subscription.createMany({ data: [...ids, 'z-due'].map((id) => ({ id, organizationId: id, planId: paid.id,
+        status: id === 'z-due' ? 'ACTIVE' : 'EXPIRED', currentPeriodStart: new Date('2026-01-01'), currentPeriodEnd: new Date('2026-02-01') })) });
+      await prisma.invoice.createMany({ data: ids.map((id) => ({ id, organizationId: id, subscriptionId: id, planId: paid.id, number: id,
+        kind: 'RENEWAL', intervalSnapshot: 'MONTHLY', renewalAnchorEnd: new Date('2026-02-01'), status: 'PAID', subtotalMinor: 5000n, totalMinor: 5000n,
+        periodStart: new Date('2026-02-01'), periodEnd: new Date('2026-03-01') })) });
+      await subscriptions.applyDueFreeChanges();
+      expect((await prisma.subscription.findUniqueOrThrow({ where: { id: 'z-due' } })).status).toBe('ACTIVE');
+      await subscriptions.applyDueFreeChanges();
+      expect((await prisma.subscription.findUniqueOrThrow({ where: { id: 'z-due' } })).status).toBe('EXPIRED');
+    });
+
+    it.each([true, false])('captures a due reserved entitlement only from its winning payment: %s', async (hasVerifiedWinner) => {
+      const { current, invoice } = await prepayRenewal();
+      const start = new Date('2026-01-01');
+      await prisma.plan.update({ where: { id: current.planId }, data: { invitationLifetimeDays: null } });
+      await prisma.subscription.update({ where: { id: current.id }, data: { currentPeriodStart: new Date('2025-12-01'), currentPeriodEnd: start } });
+      await prisma.invoice.update({ where: { id: invoice.id }, data: { periodStart: start, periodEnd: new Date('2030-01-01') } });
+      await prisma.payment.create({ data: { organizationId, invoiceId: invoice.id, purpose: 'SUBSCRIPTION', provider: 'FAKE',
+        amountMinor: invoice.totalMinor, currency: invoice.currency, orderNumber: 'duplicate-capture', idempotencyKey: 'duplicate-capture', status: 'CAPTURED' } });
+      if (!hasVerifiedWinner) await prisma.payment.update({ where: { orderNumber: invoice.paymentOrderNumber! }, data: { status: 'REFUNDED', refundedMinor: invoice.totalMinor } });
+      const invitation = await prisma.invitation.findFirstOrThrow({ where: { event: { organizationId } } });
+      await prisma.invitation.update({ where: { id: invitation.id }, data: { status: 'DRAFT', lifetimeSource: null } });
+      await prisma.$transaction((tx) => captureInvitationLifetime(tx, invitation.id));
+      expect((await prisma.invitation.findUniqueOrThrow({ where: { id: invitation.id } })).lifetimeSource)
+        .toBe(hasVerifiedWinner ? 'PLAN' : 'FREE_DEFAULT');
+    });
+
+    it('settles the original monthly quote after catalog price, currency and interval change', async () => {
+      const current = await buyPeriod();
+      const choice = await subscriptions.renew(organizationId, quote(current.currentPeriodEnd));
+      await prisma.plan.update({ where: { id: current.planId }, data: { priceMinor: 9999n, currency: 'USD', interval: 'YEARLY' } });
+      fake.simulateSuccess(`fake_${choice.invoice.paymentOrderNumber}`);
+      const paid = await subscriptions.confirmPayment(organizationId, choice.invoice.number);
+      expect(paid).toMatchObject({ totalMinor: '5000', currency: 'AMD' });
+      const purchased = await prisma.invoice.findUniqueOrThrow({ where: { number: choice.invoice.number } });
+      const duration = purchased.periodEnd!.getTime() - current.currentPeriodEnd.getTime();
+      expect(duration).toBeGreaterThan(27 * 86400000);
+      expect(duration).toBeLessThanOrEqual(31 * 86400000);
+    });
+    it.each(['free', 'per-event', 'cancelled', 'scheduled-free', 'trial', 'inactive'] as const)(
+      'refuses new renewal intent for %s without financial writes', async (reason) => {
+        const current = await buyPeriod();
+        if (reason === 'free') await prisma.plan.update({ where: { id: current.planId }, data: { priceMinor: 0n } });
+        if (reason === 'per-event') await prisma.plan.update({ where: { id: current.planId }, data: { interval: 'PER_EVENT' } });
+        if (reason === 'inactive') await prisma.plan.update({ where: { id: current.planId }, data: { isActive: false } });
+        if (reason === 'cancelled') await subscriptions.cancel(organizationId);
+        if (reason === 'trial') await prisma.subscription.update({ where: { id: current.id }, data: { status: 'TRIALING' } });
+        if (reason === 'scheduled-free') {
+          await plan({ key: 'renewal-free', priceMinor: 0n });
+          await subscriptions.subscribe(organizationId, { planKey: 'renewal-free' });
+        }
+        const before = [await prisma.invoice.count(), await prisma.payment.count()];
+        await expect(subscriptions.renew(organizationId, quote(current.currentPeriodEnd))).rejects.toMatchObject({ code: 'RENEWAL_UNAVAILABLE' });
+        expect([await prisma.invoice.count(), await prisma.payment.count()]).toEqual(before);
+      });
+    it('rejects a changed quote before issuing a charge', async () => {
+      const current = await buyPeriod();
+      const count = await prisma.invoice.count();
+      await expect(subscriptions.renew(organizationId, { ...quote(current.currentPeriodEnd), expectedPriceMinor: '1' }))
+        .rejects.toThrow('quote');
+      expect(await prisma.invoice.count()).toBe(count);
+    });
+    it('late renewal buys a full period and a stale-boundary replay cannot buy another', async () => {
+      const current = await buyPeriod();
+      const end = new Date('2026-01-31T00:00:00Z');
+      await prisma.subscription.update({ where: { id: current.id }, data: { currentPeriodStart: new Date('2025-12-31T00:00:00Z'), currentPeriodEnd: end, status: 'EXPIRED' } });
+      const choice = await subscriptions.renew(organizationId, quote(end));
+      fake.simulateSuccess(`fake_${choice.invoice.paymentOrderNumber}`);
+      const before = Date.now();
+      await subscriptions.confirmPayment(organizationId, choice.invoice.number);
+      const after = await prisma.subscription.findUniqueOrThrow({ where: { id: current.id } });
+      expect(after.currentPeriodStart.getTime()).toBeGreaterThanOrEqual(before);
+      expect(after.currentPeriodEnd.getTime()).toBeGreaterThan(after.currentPeriodStart.getTime() + 27 * 86400000);
+      expect((await subscriptions.renew(organizationId, quote(end))).invoice.number).toBe(choice.invoice.number);
+      expect(await prisma.invoice.count({ where: { kind: 'RENEWAL' } })).toBe(1);
+    });
+  });
+
 });

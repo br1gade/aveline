@@ -1,3 +1,4 @@
+import { findVerifiedRenewalCapture } from '../billing/renewal-state';
 import { periodAfter } from '../billing/billing-period';
 import { freeTerms } from '../billing/scheduled-free';
 import { Prisma } from '@prisma/client';
@@ -33,6 +34,8 @@ async function effectiveLifetimePlan(tx: Prisma.TransactionClient, organizationI
     const plan = freeTerms(subscription.pendingFreeTerms);
     return plan && periodAfter(plan.interval, subscription.pendingFreeAt).end > now ? plan : null;
   }
+  const reserved = await reservedLifetimePlan(tx, organizationId, now);
+  if (reserved) return reserved;
   if (subscription.status !== 'ACTIVE' || subscription.currentPeriodEnd <= now) return null;
   return freeTerms(subscription.activeFreeTerms) ?? subscription.plan;
 }
@@ -40,4 +43,10 @@ async function effectiveLifetimePlan(tx: Prisma.TransactionClient, organizationI
 export const LIFETIME_SELECT = { expiresAt: true, firstPublishedAt: true, lifetimeDays: true, lifetimeSource: true, lifetimePlanKey: true } as const;
 export function hasInvitationExpired(invitation: { expiresAt: Date | null }, now = new Date()): boolean {
   return invitation.expiresAt !== null && invitation.expiresAt <= now;
+}
+
+async function reservedLifetimePlan(tx: Prisma.TransactionClient, organizationId: string, now: Date) {
+  const invoice = await tx.invoice.findFirst({ where: { organizationId, kind: 'RENEWAL', status: 'PAID', activatedAt: null,
+    periodStart: { lte: now }, periodEnd: { gt: now } }, include: { plan: { select: { key: true, invitationLifetimeDays: true } } } });
+  return invoice && await findVerifiedRenewalCapture(tx, invoice) ? invoice.plan : null;
 }

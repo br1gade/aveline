@@ -18,7 +18,9 @@ import { PaymentsService } from '../payments/payments.service';
 import { assertChargesEnabled } from '../payments/pilot-payments';
 import { invoiceNumberFor, periodAfter } from './billing-period';
 import { nextInvoiceSequence } from './invoice-number';
-import { SubscribeDto } from './dto/subscription.dto';
+import { invoiceReturnUrl } from './billing-return';
+import { applyDueRenewal, findReservedRenewal, renewalConflict, settleRenewal, SUBSCRIPTION_INCLUDE, voidUnpaidRenewals } from './renewal-state';
+import { PayInvoiceDto, RenewSubscriptionDto, SubscribeDto } from './dto/subscription.dto';
 import { applyScheduledFree, captureFreeTerms, CLEAR_SCHEDULED_FREE, lockBillingOrganization } from './scheduled-free';
 import { billingLocale, captureDescriptionTranslations, planDisplay } from './billing-display';
 import { describeInvoice, describeSubscription, InvoiceRow, SubscriptionWithPlan } from './billing-presenter';
@@ -32,6 +34,7 @@ interface BillingRequest { actor: RequestActor; locale: string }
 
 @Injectable()
 export class SubscriptionsService implements OnModuleInit {
+  private dueCursor: string | null = null;
   private readonly logger = new Logger(SubscriptionsService.name);
 
   constructor(
@@ -79,13 +82,8 @@ export class SubscriptionsService implements OnModuleInit {
    * null }` is a shape a client can read without a special case.
    */
   async current(organizationId: string, locale = 'en') {
-    const load = (db: Prisma.TransactionClient) => db.subscription.findUnique({ where: { organizationId }, include: { plan: true } });
-    const existing = await load(this.prisma);
-    const subscription = existing?.pendingFreeAt && existing.pendingFreeAt <= new Date()
-      ? await this.withBillingLock(organizationId, async (tx) => {
-        await applyScheduledFree(tx, organizationId, new Date());
-        return load(tx);
-      }) : existing;
+    const subscription = await this.withBillingLock(organizationId, (tx) =>
+      tx.subscription.findUnique({ where: { organizationId }, include: SUBSCRIPTION_INCLUDE }));
 
     return { subscription: subscription === null ? null : describeSubscription(subscription, locale) };
   }
@@ -121,7 +119,7 @@ export class SubscriptionsService implements OnModuleInit {
     const { subscription, invoice } = await this.withBillingLock(organizationId, async (tx) => {
       await applyScheduledFree(tx, organizationId, new Date());
       const open = await tx.invoice.findFirst({
-        where: { organizationId, planId: plan.id, status: InvoiceStatus.ISSUED },
+        where: { organizationId, planId: plan.id, kind: 'PURCHASE', status: InvoiceStatus.ISSUED },
         include: { subscription: { include: { plan: true } } },
       });
       // The same plan asked for again — a double click, a retry — is the same
@@ -132,6 +130,8 @@ export class SubscriptionsService implements OnModuleInit {
       // row on the paid plan reported its entitlements to an organization that
       // had paid nothing (B85). Paying the invoice creates it.
       const existing = await tx.subscription.findUnique({ where: { organizationId }, include: { plan: true } });
+      if (existing && await findReservedRenewal(tx, existing.id)) renewalConflict('RENEWAL_RESERVED', 'A paid renewal is reserved; refund it before changing paid plans');
+      if (existing) await requireResolvedRenewalHistory(tx, existing.id);
       // One open invoice at a time: the newer intent replaces the older.
       await voidOpenInvoices(tx, organizationId);
       const issued = await this.issueInvoice(tx, { organizationId, subscriptionId: existing?.id ?? null, plan, context });
@@ -150,14 +150,58 @@ export class SubscriptionsService implements OnModuleInit {
     };
   }
 
+  async renew(organizationId: string, dto: RenewSubscriptionDto, context?: BillingRequest) {
+    assertChargesEnabled();
+    this.payments.assertProviderConfigured(dto.provider);
+    const invoice = await this.withBillingLock(organizationId, async (tx) => {
+      const subscription = await tx.subscription.findUnique({ where: { organizationId }, include: { plan: true } });
+      if (!subscription) renewalConflict('RENEWAL_UNAVAILABLE', 'There is no paid subscription to renew');
+      const existing = await tx.invoice.findFirst({ where: { subscriptionId: subscription.id, kind: 'RENEWAL',
+        renewalAnchorEnd: new Date(dto.expectedPeriodEnd), status: { in: ['ISSUED', 'PAID'] } } });
+      if (existing) {
+        if (existing.status === 'ISSUED' && (existing.totalMinor.toString() !== dto.expectedPriceMinor || existing.currency !== dto.expectedCurrency || existing.intervalSnapshot !== dto.expectedInterval)) {
+          renewalConflict('RENEWAL_QUOTE_CHANGED', 'The renewal quote changed; review the existing invoice before paying');
+        }
+        return existing;
+      }
+      assertRenewalQuote(subscription, dto);
+      await requireResolvedRenewalHistory(tx, subscription.id);
+      if (await findReservedRenewal(tx, subscription.id)) renewalConflict('RENEWAL_RESERVED', 'A paid renewal is already reserved');
+      await voidOpenInvoices(tx, organizationId);
+      const issued = await this.issueInvoice(tx, { organizationId, subscriptionId: subscription.id, plan: subscription.plan, context });
+      return tx.invoice.update({ where: { id: issued.id }, data: { kind: 'RENEWAL', renewalAnchorEnd: subscription.currentPeriodEnd } });
+    }, context?.actor);
+    const payment = invoice.status === 'PAID' ? null : await this.payInvoice(invoice, { organizationId,
+      planName: 'Subscription renewal', provider: dto.provider });
+    const linked = await this.prisma.invoice.findUniqueOrThrow({ where: { id: invoice.id } });
+    return { subscription: (await this.current(organizationId, context?.locale)).subscription,
+      invoice: describeInvoice(linked, context?.locale), payment };
+  }
+
+  async payExistingInvoice(organizationId: string, number: string, dto: PayInvoiceDto, context?: BillingRequest) {
+    assertChargesEnabled();
+    this.payments.assertProviderConfigured(dto.provider);
+    const invoice = await this.withBillingLock(organizationId, async (tx) => {
+      const found = await tx.invoice.findFirst({ where: { organizationId, number } });
+      if (!found) throw new NotFoundException('No such invoice');
+      if (found.status !== 'ISSUED') renewalConflict('INVOICE_CLOSED', 'This invoice is closed; reload billing');
+      return found;
+    }, context?.actor);
+    const payment = await this.payInvoice(invoice, { organizationId, planName: 'Subscription', provider: dto.provider });
+    const linked = await this.prisma.invoice.findUniqueOrThrow({ where: { id: invoice.id } });
+    return { subscription: (await this.current(organizationId, context?.locale)).subscription,
+      invoice: describeInvoice(linked, context?.locale), payment };
+  }
+
   private selectFreePlan(organizationId: string, plan: Plan, actor?: RequestActor) {
     return this.withBillingLock(organizationId, async (tx) => {
       const now = new Date();
       await applyScheduledFree(tx, organizationId, now);
-      const current = await tx.subscription.findUnique({ where: { organizationId }, include: { plan: true } });
+      const current = await tx.subscription.findUnique({ where: { organizationId }, include: SUBSCRIPTION_INCLUDE });
       if (current?.pendingFreePlanId === plan.id) return current;
       await voidOpenInvoices(tx, organizationId);
-      if (!current || !hasPaidPeriod(current, now)) {
+      const reserved = current && await findReservedRenewal(tx, current.id);
+      if (!current || (!hasPaidPeriod(current, now) && !reserved)) {
         return this.upsertSubscription({
           organizationId, planId: plan.id, period: periodAfter(plan.interval, now), status: SubscriptionStatus.ACTIVE,
         }, tx);
@@ -165,10 +209,10 @@ export class SubscriptionsService implements OnModuleInit {
       return tx.subscription.update({
         where: { id: current.id },
         data: {
-          pendingFreeAt: current.currentPeriodEnd, pendingFreePlanId: plan.id, pendingFreeTerms: captureFreeTerms(plan),
+          pendingFreeAt: reserved?.periodEnd ?? current.currentPeriodEnd, pendingFreePlanId: plan.id, pendingFreeTerms: captureFreeTerms(plan),
           cancelAtPeriodEnd: false, cancelledAt: null,
         },
-        include: { plan: true },
+        include: SUBSCRIPTION_INCLUDE,
       });
     }, actor);
   }
@@ -180,7 +224,7 @@ export class SubscriptionsService implements OnModuleInit {
         throw new ConflictException('The Free change has already reached its effective date');
       }
       const updated = await tx.subscription.update({
-        where: { id: subscription.id }, data: CLEAR_SCHEDULED_FREE, include: { plan: true },
+        where: { id: subscription.id }, data: CLEAR_SCHEDULED_FREE, include: SUBSCRIPTION_INCLUDE,
       });
       return describeSubscription(updated, locale);
     });
@@ -189,15 +233,30 @@ export class SubscriptionsService implements OnModuleInit {
   @Cron(CronExpression.EVERY_MINUTE, { waitForCompletion: true })
   async applyDueFreeChanges(now = new Date()) {
     const due = await this.prisma.subscription.findMany({
-      where: { pendingFreeAt: { lte: now } }, orderBy: { pendingFreeAt: 'asc' },
-      take: 100, select: { organizationId: true },
+      where: { ...(this.dueCursor ? { id: { gt: this.dueCursor } } : {}), OR: [{ pendingFreeAt: { lte: now } }, { status: 'ACTIVE', currentPeriodEnd: { lte: now }, plan: { priceMinor: { gt: 0 }, interval: { not: 'PER_EVENT' } } },
+        { invoices: { some: { kind: 'RENEWAL', status: 'PAID', activatedAt: null, periodStart: { lte: now } } } }] }, orderBy: { id: 'asc' },
+      take: 100, select: { id: true, organizationId: true },
     });
+    this.dueCursor = due.length === 100 ? due[due.length - 1].id : null;
     for (const { organizationId } of due) {
       try {
-        await this.withBillingLock(organizationId, (tx) => applyScheduledFree(tx, organizationId, now));
+        await this.withBillingLock(organizationId, async (tx) => { await applyDueRenewal(tx, organizationId, now); await applyScheduledFree(tx, organizationId, now); });
       } catch {
         this.logger.warn(`Could not apply scheduled Free plan for organization ${organizationId}`);
       }
+    }
+  }
+
+  @Cron(CronExpression.EVERY_MINUTE, { waitForCompletion: true })
+  async recoverRefundedInvoices(limit = 50) {
+    const invoices = await this.prisma.$queryRaw<{ orderNumber: string }[]>`
+      SELECT p."orderNumber" FROM invoices i JOIN payments p ON p."orderNumber" = i."paymentOrderNumber"
+      WHERE i.status = 'PAID' AND p.status = 'REFUNDED'
+        AND (SELECT COALESCE(SUM(r."amountMinor"), 0) FROM refunds r WHERE r."paymentId" = p.id AND r.status = 'COMPLETED') >= p."amountMinor"
+      ORDER BY i."paidAt", i.id LIMIT ${limit}`;
+    for (const invoice of invoices) {
+      try { await this.endRefundedPlan({ orderNumber: invoice.orderNumber, status: 'REFUNDED' }); }
+      catch { this.logger.warn('Could not recover a refunded subscription invoice'); }
     }
   }
 
@@ -212,6 +271,11 @@ export class SubscriptionsService implements OnModuleInit {
         const user = await tx.user.findUnique({ where: { id: actor.userId }, select: { deletedAt: true } });
         if (!user || user.deletedAt) throw new ForbiddenException('Account is no longer available');
       }
+      const now = new Date();
+      await applyDueRenewal(tx, organizationId, now);
+      await applyScheduledFree(tx, organizationId, now);
+      await tx.subscription.updateMany({ where: { organizationId, status: 'ACTIVE', currentPeriodEnd: { lte: now },
+        plan: { priceMinor: { gt: 0 }, interval: { not: 'PER_EVENT' } } }, data: { status: 'EXPIRED' } });
       return work(tx);
     });
   }
@@ -228,7 +292,7 @@ export class SubscriptionsService implements OnModuleInit {
     return this.payments.start({
       organizationId: request.organizationId, purpose: PaymentPurpose.SUBSCRIPTION,
       provider: request.provider, amountMinor: invoice.totalMinor.toString(), currency: invoice.currency,
-      returnUrl: request.returnUrl ?? appPage('/billing/return'),
+      returnUrl: invoiceReturnUrl(request.returnUrl ?? appPage('/billing/return'), { number: invoice.number, organizationId: request.organizationId }),
       description: `${request.planName} — invoice ${invoice.number}`, idempotencyKey: `invoice-${invoice.id}`,
     }, { invoiceId: invoice.id });
   }
@@ -328,7 +392,8 @@ export class SubscriptionsService implements OnModuleInit {
       if (claimed.count === 0) return false;
 
       const invoice = await tx.invoice.findUniqueOrThrow({ where: { id: invoiceId }, include: { plan: true, subscription: true } });
-      await this.applyPaidPlan(tx, invoice);
+      if (invoice.kind === 'RENEWAL') await settleRenewal(tx, invoice, invoice.paidAt ?? new Date());
+      else await this.applyPaidPlan(tx, invoice);
       return true;
     });
 
@@ -353,6 +418,7 @@ export class SubscriptionsService implements OnModuleInit {
       id: string;
       organizationId: string;
       createdAt: Date;
+      intervalSnapshot: BillingInterval | null;
       plan: { id: string; interval: BillingInterval } | null;
       subscription: { id: string; cancelledAt: Date | null } | null;
     },
@@ -360,22 +426,26 @@ export class SubscriptionsService implements OnModuleInit {
     if (!invoice.subscription) {
       if (!invoice.plan) return;
       const opened = await this.upsertSubscription(
-        { organizationId: invoice.organizationId, planId: invoice.plan.id, period: periodAfter(invoice.plan.interval, new Date()), status: SubscriptionStatus.ACTIVE },
+        { organizationId: invoice.organizationId, planId: invoice.plan.id, period: periodAfter(invoice.intervalSnapshot ?? invoice.plan.interval, new Date()), status: SubscriptionStatus.ACTIVE },
         tx,
       );
-      await tx.invoice.update({ where: { id: invoice.id }, data: { subscriptionId: opened.id } });
+      await tx.invoice.update({ where: { id: invoice.id }, data: { subscriptionId: opened.id, periodStart: opened.currentPeriodStart, periodEnd: opened.currentPeriodEnd, activatedAt: opened.currentPeriodStart } });
+      await tx.subscription.update({ where: { id: opened.id }, data: { currentPeriodInvoiceId: invoice.id, billingAnchorAt: opened.currentPeriodStart } });
       return;
     }
     const isCancelledSince = invoice.subscription.cancelledAt !== null && invoice.subscription.cancelledAt > invoice.createdAt;
-    const change = planChange(invoice.plan);
+    const change = planChange(invoice.plan && { ...invoice.plan, interval: invoice.intervalSnapshot ?? invoice.plan.interval });
     await tx.subscription.update({
       where: { id: invoice.subscription.id },
       data: {
         status: SubscriptionStatus.ACTIVE,
         ...change,
+        currentPeriodInvoiceId: invoice.id, billingAnchorAt: change.currentPeriodStart as Date | undefined,
         ...(isCancelledSince ? { cancelAtPeriodEnd: true, cancelledAt: invoice.subscription.cancelledAt } : {}),
       },
     });
+    await tx.invoice.update({ where: { id: invoice.id }, data: { periodStart: change.currentPeriodStart as Date | undefined,
+      periodEnd: change.currentPeriodEnd as Date | undefined, activatedAt: change.currentPeriodStart as Date | undefined } });
   }
 
   /**
@@ -394,20 +464,21 @@ export class SubscriptionsService implements OnModuleInit {
     await this.withBillingLock(owner.organizationId, async (tx) => {
       const invoice = await tx.invoice.findFirst({
         where: { organizationId: owner.organizationId, paymentOrderNumber: payment.orderNumber, status: InvoiceStatus.PAID },
-        select: { id: true, subscriptionId: true, planId: true, paidAt: true, subscription: { select: { planId: true, activeFreeTerms: true } } },
+        include: { subscription: true },
       });
-      if (!invoice) return;
+      if (!invoice || !await isFullyRefunded(tx, payment.orderNumber)) return;
       await tx.invoice.update({ where: { id: invoice.id }, data: { status: InvoiceStatus.VOID } });
-      if (!invoice.subscriptionId || invoice.subscription?.activeFreeTerms || invoice.subscription?.planId !== invoice.planId) return;
-
-      const newer = await tx.invoice.count({
-        where: { subscriptionId: invoice.subscriptionId, status: InvoiceStatus.PAID, paidAt: { gt: invoice.paidAt ?? new Date(0) } },
-      });
-      if (newer > 0) return;
+      const current = invoice.subscription;
+      if (!current || current.activeFreeTerms) return;
+      if (invoice.kind === 'RENEWAL' && !invoice.activatedAt && current.pendingFreeAt) {
+        await tx.subscription.update({ where: { id: current.id }, data: { pendingFreeAt: current.currentPeriodEnd } });
+      }
+      if (!await ownsCurrentPeriod(tx, invoice)) return;
+      await voidUnpaidRenewals(tx, owner.organizationId);
 
       const now = new Date();
       await tx.subscription.update({
-        where: { id: invoice.subscriptionId },
+        where: { id: current.id },
         data: { status: SubscriptionStatus.CANCELLED, currentPeriodEnd: now, cancelledAt: now, cancelAtPeriodEnd: false },
       });
     });
@@ -425,10 +496,11 @@ export class SubscriptionsService implements OnModuleInit {
       const now = new Date();
       await applyScheduledFree(tx, organizationId, now);
       const subscription = await this.requireSubscription(organizationId, tx);
+      await voidUnpaidRenewals(tx, organizationId);
       const updated = await tx.subscription.update({
         where: { id: subscription.id },
         data: { ...CLEAR_SCHEDULED_FREE, cancelAtPeriodEnd: true, cancelledAt: now },
-        include: { plan: true },
+        include: SUBSCRIPTION_INCLUDE,
       });
       return describeSubscription(updated, locale);
     });
@@ -446,7 +518,7 @@ export class SubscriptionsService implements OnModuleInit {
       const updated = await tx.subscription.update({
         where: { id: subscription.id },
         data: { cancelAtPeriodEnd: false, cancelledAt: null },
-        include: { plan: true },
+        include: SUBSCRIPTION_INCLUDE,
       });
       return describeSubscription(updated, locale);
     });
@@ -497,6 +569,7 @@ export class SubscriptionsService implements OnModuleInit {
       update: {
         ...CLEAR_SCHEDULED_FREE,
         activeFreeTerms: Prisma.DbNull,
+        currentPeriodInvoiceId: null, billingAnchorAt: null,
         planId,
         status,
         currentPeriodStart: period.start,
@@ -533,6 +606,7 @@ export class SubscriptionsService implements OnModuleInit {
         organizationId: input.organizationId,
         subscriptionId: input.subscriptionId,
         planId: input.plan.id,
+        intervalSnapshot: input.plan.interval,
         requestedByUserId: input.context?.actor.userId ?? null,
         paymentNoticeLocale: input.context ? billingLocale(input.context.locale) : null,
         number: invoiceNumberFor(series, sequence),
@@ -588,4 +662,48 @@ function hasPaidPeriod(subscription: SubscriptionWithPlan, now: Date) {
   return subscription.status === SubscriptionStatus.ACTIVE && !subscription.activeFreeTerms &&
     subscription.plan.priceMinor > 0n && subscription.plan.interval !== BillingInterval.PER_EVENT &&
     subscription.currentPeriodEnd > now;
+}
+
+function assertRenewalQuote(subscription: SubscriptionWithPlan, dto: RenewSubscriptionDto) {
+  if (subscription.currentPeriodEnd.toISOString() !== new Date(dto.expectedPeriodEnd).toISOString()) {
+    renewalConflict('RENEWAL_PERIOD_CHANGED', 'The subscription period changed; reload before renewing');
+  }
+  if (!isRenewable(subscription)) {
+    renewalConflict('RENEWAL_UNAVAILABLE', 'This subscription cannot be renewed; select a plan');
+  }
+  if (subscription.plan.priceMinor.toString() !== dto.expectedPriceMinor || subscription.plan.currency !== dto.expectedCurrency ||
+    subscription.plan.interval !== dto.expectedInterval) renewalConflict('RENEWAL_QUOTE_CHANGED', 'The renewal quote changed; reload before paying');
+}
+
+async function isFullyRefunded(tx: Prisma.TransactionClient, orderNumber: string): Promise<boolean> {
+  await tx.$queryRaw`SELECT id FROM payments WHERE "orderNumber" = ${orderNumber} FOR UPDATE`;
+  const payment = await tx.payment.findUnique({ where: { orderNumber }, select: { id: true, amountMinor: true } });
+  if (!payment) return false;
+  const completed = await tx.refund.aggregate({ where: { paymentId: payment.id, status: 'COMPLETED' }, _sum: { amountMinor: true } });
+  return (completed._sum.amountMinor ?? 0n) >= payment.amountMinor;
+}
+
+function isRenewable(subscription: SubscriptionWithPlan) {
+  return ['ACTIVE', 'EXPIRED'].includes(subscription.status) && !subscription.cancelAtPeriodEnd && !subscription.pendingFreeAt &&
+    !subscription.activeFreeTerms && subscription.plan.priceMinor > 0n && subscription.plan.interval !== 'PER_EVENT' && subscription.plan.isActive !== false;
+}
+
+async function ownsCurrentPeriod(tx: Prisma.TransactionClient, invoice: Prisma.InvoiceGetPayload<{ include: { subscription: true } }>) {
+  const current = invoice.subscription;
+  if (!current) return false;
+  if (current.currentPeriodInvoiceId !== null) return current.currentPeriodInvoiceId === invoice.id;
+  if (invoice.kind === 'RENEWAL' || current.planId !== invoice.planId) return false;
+  return await tx.invoice.count({ where: { subscriptionId: current.id, kind: 'PURCHASE', status: 'PAID',
+    paidAt: { gt: invoice.paidAt ?? new Date(0) } } }) === 0;
+}
+
+async function requireResolvedRenewalHistory(tx: Prisma.TransactionClient, subscriptionId: string) {
+  const unresolved = await tx.$queryRaw<{ id: string }[]>`
+    SELECT p.id FROM payments p JOIN invoices i ON p."invoiceId" = i.id
+    WHERE i."subscriptionId" = ${subscriptionId} AND i.kind = 'RENEWAL' AND i.status IN ('ISSUED', 'VOID')
+      AND (p."outcomeUnknownAt" IS NOT NULL OR p.status IN ('CREATED','PENDING','AUTHORIZED','CAPTURED','PARTIALLY_REFUNDED','REFUNDED')
+        OR (p.status = 'EXPIRED' AND p."providerRef" IS NOT NULL))
+      AND (SELECT COALESCE(SUM(r."amountMinor"), 0) FROM refunds r WHERE r."paymentId" = p.id AND r.status = 'COMPLETED') < p."amountMinor"
+    LIMIT 1`;
+  if (unresolved.length) renewalConflict('RENEWAL_PAYMENT_UNRESOLVED', 'An earlier renewal payment needs support review; do not pay again');
 }

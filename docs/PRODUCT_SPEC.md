@@ -306,7 +306,12 @@ Entry pricing sits at the premium end of the single-artifact band, because we ar
 An organizer switching from a paid subscription to Free keeps the paid period.
 The organization owner can withdraw the change before it takes effect.
 A replacement paid checkout supersedes the scheduled change only once payment
-is confirmed. Automatic renewal requires separate consent. Invitation lifetime
+is confirmed. Manual renewal is customer-confirmed for each period (decided 26 November 2026).
+Early payment reserves the next period without shortening current paid time;
+a late renewal buys a full period from verified settlement. Cancellation and
+Free changes preserve prepaid coverage. A full refund of a future reservation
+leaves current paid coverage intact. No unpaid grace period is granted.
+Automatic renewal requires separate consent. Invitation lifetime
 captured at first publication remains in force.
 
 **Decided (23 November 2026):** a successful paid subscription sends a payment

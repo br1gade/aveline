@@ -442,12 +442,14 @@ its records are references to regenerate, never historical snapshots.
 | `GET` | `/api/v1/payment-options` | Whether anything can be paid for now, and with which banks (**public**) |
 | `GET` | `/api/v1/subscription` | Your subscription, or `{ "subscription": null }` |
 | `POST` | `/api/v1/subscription` | Start or change a plan |
+| `POST` | `/api/v1/subscription/renew` | Explicitly pay for the next period with a quoted price and expected boundary |
 | `POST` | `/api/v1/subscription/cancel` | Cancel at the end of the paid period |
 | `POST` | `/api/v1/subscription/resume` | Undo a cancellation |
 | `DELETE` | `/api/v1/subscription/pending-free` | Withdraw the scheduled switch to Free before its effective date |
 | `GET` | `/api/v1/invoices` | Your invoices, newest first |
 | `GET` | `/api/v1/invoices/page` | Cursor page of this organization's invoices, newest first |
 | `GET` | `/api/v1/invoices/:number` | One invoice with its captured line items |
+| `POST` | `/api/v1/invoices/:number/pay` | Pay or retry the exact open invoice |
 | `POST` | `/api/v1/invoices/:number/confirm` | Settle after the bank |
 | `GET` | `/api/v1/promo-codes` | Your promo codes and how much of each is left |
 | `POST` | `/api/v1/promo-codes` | Create one |

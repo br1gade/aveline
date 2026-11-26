@@ -149,11 +149,12 @@ made it.
 
 ### Payment safety migration and recovery
 
-The 23 November launch migrations require shared reader revision **4**. Stop and
+The 23 November launch migrations originally required reader revision **4**;
+the current combined release requires **5** for manual renewal. Stop and
 exclude every older API, scheduler, worker and maintenance writer before applying
 them; a higher database floor does not terminate a process that already passed
 startup. Candidate startup/preflight refuses a newer or missing floor. After
-these migrations, rollback must use a compatible revision-4 image; lowering the
+these migrations, rollback must use a compatible revision-5 image; lowering the
 floor or restarting an old writer is not a rollback strategy.
 
 Legacy backfill accepts only exact financially matching invoice/order links and
@@ -278,3 +279,14 @@ log shipping, failover and zero-downtime deployment. Refer to
 [EXPORT_WORKER](EXPORT_WORKER.md), [SEATING_WORKER](SEATING_WORKER.md),
 [GUEST_CONTRIBUTIONS](GUEST_CONTRIBUTIONS.md) and
 [TEMPLATES](../../docs/post-pilot/execution/TEMPLATES.md) for feature-specific acceptance.
+
+### Manual renewal reader floor (26 November 2026)
+
+Migration `20261126120000_manual_subscription_renewal` raises the shared floor to
+5 without changing membership activation or lowering a future floor. Stop and
+exclude every older API, scheduler, worker and maintenance writer before applying
+it: revision-4 billing would treat a renewal as an immediate plan change. A floor
+change does not terminate running processes. Deploy only revision-5-compatible
+images; retain schema and floor on rollback. `seed:production` remains required
+for translated plan copy and the non-tax payment notice. Live bank acceptance,
+mail delivery, certification and fiscal decisions remain separate launch gates.

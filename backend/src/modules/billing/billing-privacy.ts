@@ -16,7 +16,7 @@ export async function eraseBillingContext(tx: Prisma.TransactionClient, email: s
 export async function exportBillingContext(tx: Prisma.TransactionClient, email: string) {
   const invoices = await tx.invoice.findMany({
     where: { requestedBy: { email: { equals: email, mode: 'insensitive' } } },
-    select: { number: true, status: true, subtotalMinor: true, taxMinor: true, totalMinor: true,
+    select: { number: true, status: true, kind: true, periodStart: true, periodEnd: true, renewalAnchorEnd: true, subtotalMinor: true, taxMinor: true, totalMinor: true,
       currency: true, lines: true, issuedAt: true, dueAt: true, paidAt: true, paymentNoticeLocale: true },
     orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
   });

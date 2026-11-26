@@ -187,6 +187,17 @@ describe('what choosing says first', () => {
   });
 });
 
+describe('renewal refusal actions', () => {
+  it('directs a paid reservation to support and an unresolved earlier attempt away from another payment', () => {
+    expect(billingRefusalOf(apiError(409, 'reserved', 'RENEWAL_RESERVED')).kind).toBe(
+      'reservedPaid',
+    );
+    expect(billingRefusalOf(apiError(409, 'unknown', 'RENEWAL_PAYMENT_UNRESOLVED')).kind).toBe(
+      'uncertain',
+    );
+  });
+});
+
 describe('the readers keep no order number and no bank address beyond the one to follow', () => {
   const orderNumber = `AVL-${plantedToken()}`;
 
@@ -277,12 +288,34 @@ describe('the readers keep no order number and no bank address beyond the one to
     };
     const read = readSubscription(wire);
     expect(Object.keys(read).sort()).toEqual(
-      ['cancelAtPeriodEnd', 'currentPeriodEnd', 'pendingFree', 'plan', 'status'].sort(),
+      [
+        'canRenew',
+        'paidThrough',
+        'pendingRenewal',
+        'cancelAtPeriodEnd',
+        'currentPeriodEnd',
+        'pendingFree',
+        'plan',
+        'status',
+      ].sort(),
     );
     const { pendingFree: _absent, ...older } = wire;
     expect(readSubscription(older).pendingFree).toBeNull();
   });
 
+  it('distinguishes an already active paid renewal replay from a reserved one', () => {
+    const invoice = { number: 'AV-2026-000001', status: 'PAID', periodStart: EARLIER };
+    expect(readChoice({ subscription: null, invoice, payment: null })).toEqual({
+      kind: 'activated',
+    });
+    expect(
+      readChoice({
+        subscription: { pendingRenewal: { number: invoice.number, start: EARLIER, end: LATER } },
+        invoice,
+        payment: null,
+      }),
+    ).toEqual({ kind: 'scheduled', effectiveAt: EARLIER });
+  });
   it('a free plan scheduled for the period’s end, apart from one active now (FR-135)', () => {
     const pendingFree = { planKey: 'free', effectiveAt: LATER };
     expect(readChoice({ subscription: { pendingFree }, invoice: null, payment: null })).toEqual({

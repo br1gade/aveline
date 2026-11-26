@@ -16,7 +16,7 @@ import {
   vi,
 } from 'vitest';
 
-import { createBrowserSession, type BrowserSession } from '@/api/session';
+import { createBrowserSession, organizationChoice, type BrowserSession } from '@/api/session';
 import { createI18n, type Language } from '@/lib/i18n';
 import { leaveForBank } from '@/lib/links/bank';
 import { GrantedPermissions, type Granted } from '@/features/permissions';
@@ -24,7 +24,7 @@ import { GrantedPermissions, type Granted } from '@/features/permissions';
 import { plantedToken } from '../../../test/tokens';
 import { BillingPage } from './components/billing-page';
 import { BillingReturnFailed, BillingReturnPage } from './components/billing-return-page';
-import { confirmNewestInvoice, loadBilling, type BillingData } from './load';
+import { confirmReturnedInvoice, loadBilling, type BillingData } from './load';
 
 const PILOT = 'Payments are disabled for the free pilot';
 // A real bank, so a hard-coded FAKE anywhere in the page would show (FR-109).
@@ -85,6 +85,9 @@ const free = {
 };
 const held = {
   status: 'ACTIVE',
+  canRenew: false,
+  paidThrough: '2026-12-04T10:00:00Z',
+  pendingRenewal: null as { number: string; start: string; end: string } | null,
   plan: paid,
   entitlements,
   currentPeriodStart: '2026-10-04T10:00:00Z',
@@ -126,6 +129,7 @@ beforeEach(() => {
   });
 });
 afterEach(() => {
+  organizationChoice.clear();
   server.resetHandlers();
   vi.mocked(leaveForBank).mockClear();
 });
@@ -187,10 +191,14 @@ async function openPage(language: Language = 'en', permissions: Granted = null) 
 
 describe('the billing page', () => {
   it('offers choosing, cancelling and keeping only with `billing:write` (FR-6)', async () => {
-    answerReads({ ...held, pendingFree: { planKey: 'free', effectiveAt: held.currentPeriodEnd } });
+    answerReads({
+      ...held,
+      canRenew: true,
+      pendingFree: { planKey: 'free', effectiveAt: held.currentPeriodEnd },
+    });
     await openPage('en', ['billing:read']);
     expect(screen.getByText('Moves to the free plan on 4 December 2026.')).toBeInTheDocument();
-    for (const name of [/Choose/, /Cancel/, 'Keep the plan']) {
+    for (const name of [/Choose/, /Cancel/, 'Keep the plan', 'Renew plan']) {
       expect(screen.queryByRole('button', { name })).not.toBeInTheDocument();
     }
   });
@@ -414,11 +422,59 @@ describe('the billing page', () => {
     expect(within(plans).getAllByRole('button', { name: 'Choose this plan' })).toHaveLength(2);
   });
 
+  it('asks for one manual renewal with the exact displayed quote and source boundary', async () => {
+    answerReads({ ...held, canRenew: true });
+    let body: unknown;
+    server.use(
+      http.post(`${API}/subscription/renew`, async ({ request }) => {
+        body = await request.json();
+        return HttpResponse.json({
+          subscription: held,
+          invoice: { ...invoice, kind: 'RENEWAL' },
+          payment: { redirectUrl: 'https://bank.example/renew' },
+        });
+      }),
+    );
+    await openPage();
+    await userEvent.click(screen.getByRole('button', { name: 'Renew plan' }));
+    const dialog = await screen.findByRole('alertdialog');
+    expect(dialog).toHaveTextContent('keeps your current paid time');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Continue to bank' }));
+    await vi.waitFor(() => expect(leaveForBank).toHaveBeenCalledWith('https://bank.example/renew'));
+    expect(body).toEqual({
+      provider: 'AMERIABANK',
+      expectedPeriodEnd: held.currentPeriodEnd,
+      expectedPriceMinor: paid.priceMinor,
+      expectedCurrency: paid.currency,
+      expectedInterval: paid.interval,
+    });
+  });
+  it('shows reserved dates separately and cancellation uses all purchased time', async () => {
+    answerReads({
+      ...held,
+      paidThrough: '2027-01-04T10:00:00Z',
+      cancelAtPeriodEnd: true,
+      pendingRenewal: {
+        number: invoice.number,
+        start: held.currentPeriodEnd,
+        end: '2027-01-04T10:00:00Z',
+      },
+    });
+    await openPage();
+    expect(screen.getByText(/Next period paid/)).toBeVisible();
+    expect(screen.getByText(/Ends on/)).toHaveTextContent('2027');
+    expect(screen.queryByRole('button', { name: 'Renew plan' })).not.toBeInTheDocument();
+  });
+  it('does not offer renewal while paid payments are unavailable', async () => {
+    answerReads({ ...held, canRenew: true }, [], PAYMENTS_OFF);
+    await openPage();
+    expect(screen.queryByRole('button', { name: 'Renew plan' })).not.toBeInTheDocument();
+  });
   it('offers paying an open invoice, by its plan', async () => {
     answerReads(null);
     let body: unknown;
     server.use(
-      http.post(`${API}/subscription`, async ({ request }) => {
+      http.post(`${API}/invoices/:number/pay`, async ({ request }) => {
         body = await request.json();
         return HttpResponse.json({
           subscription: null,
@@ -432,7 +488,7 @@ describe('the billing page', () => {
     const dialog = await screen.findByRole('alertdialog');
     await userEvent.click(within(dialog).getByRole('button', { name: 'Go to the bank' }));
     await vi.waitFor(() => expect(leaveForBank).toHaveBeenCalledWith('https://bank.example/again'));
-    expect(body).toEqual({ planKey: 'managed-monthly', provider: 'AMERIABANK' });
+    expect(body).toEqual({ provider: 'AMERIABANK' });
   });
 
   it('offers no payment on an invoice with no plan to ask for', async () => {
@@ -521,8 +577,11 @@ describe('the bank’s return, when the page itself fails', () => {
 });
 
 describe('the bank’s return', () => {
-  async function openReturn() {
-    const read = await confirmNewestInvoice(session().api);
+  async function openReturn(hasContext = true) {
+    const read = await confirmReturnedInvoice(
+      session().api,
+      hasContext ? { number: 'AV-2026-000001', organizationId: 'org-return' } : null,
+    );
     show(<BillingReturnPage read={read} provider="FAKE" />);
     await screen.findByRole('heading', { name: 'Back from the bank' });
   }
@@ -538,7 +597,7 @@ describe('the bank’s return', () => {
     return () => number;
   }
 
-  it('confirms the newest invoice, read alone, and only confirm says it’s paid', async () => {
+  it('confirms the returned invoice without consulting invoice order', async () => {
     const limits: Array<string | null> = [];
     server.use(
       http.get(`${API}/invoices/page`, ({ request }) => {
@@ -551,7 +610,7 @@ describe('the bank’s return', () => {
     );
     await openReturn();
     expect(confirmed()).toBe('AV-2026-000001');
-    expect(limits).toEqual(['1']);
+    expect(limits).toEqual([]);
     expect(screen.getByRole('status')).toHaveTextContent('Your payment is confirmed');
     expect(document.body.innerHTML).not.toContain(orderNumber);
   });
@@ -582,7 +641,9 @@ describe('the bank’s return', () => {
     );
     let body: unknown;
     server.use(
-      http.post(`${API}/subscription`, async ({ request }) => {
+      http.post(`${API}/invoices/:number/pay`, async ({ request, params }) => {
+        expect(params.number).toBe(invoice.number);
+        expect(request.headers.get('x-aveline-organization-id')).toBe('org-return');
         body = await request.json();
         return HttpResponse.json({
           subscription: null,
@@ -591,10 +652,11 @@ describe('the bank’s return', () => {
         });
       }),
     );
+    organizationChoice.choose('org-other');
     await openReturn();
     await userEvent.click(screen.getByRole('button', { name: 'Pay again' }));
     await vi.waitFor(() => expect(leaveForBank).toHaveBeenCalledWith('https://bank.example/fresh'));
-    expect(body).toEqual({ planKey: 'managed-monthly', provider: 'FAKE' });
+    expect(body).toEqual({ provider: 'FAKE' });
   });
 
   it.each([
@@ -611,7 +673,7 @@ describe('the bank’s return', () => {
       HttpResponse.json({ ...invoice, payment: { orderNumber, status: 'FAILED' } }),
     );
     server.use(
-      http.post(`${API}/subscription`, () =>
+      http.post(`${API}/invoices/:number/pay`, () =>
         HttpResponse.json({
           subscription: null,
           invoice,
@@ -656,11 +718,15 @@ describe('the bank’s return', () => {
         {
           path: '/billing/return',
           HydrateFallback: () => null,
-          loader: () => confirmNewestInvoice(session().api),
+          loader: () =>
+            confirmReturnedInvoice(session().api, {
+              number: 'AV-2026-000001',
+              organizationId: 'org-return',
+            }),
           Component: function Return() {
             return (
               <BillingReturnPage
-                read={useLoaderData<typeof confirmNewestInvoice>()}
+                read={useLoaderData<typeof confirmReturnedInvoice>()}
                 provider="FAKE"
               />
             );
@@ -704,7 +770,9 @@ describe('the bank’s return', () => {
     answerConfirm(() =>
       HttpResponse.json({ ...invoice, payment: { orderNumber, status: 'FAILED' } }),
     );
-    server.use(http.post(`${API}/subscription`, () => refusal(403, PILOT, 'PAYMENTS_DISABLED')));
+    server.use(
+      http.post(`${API}/invoices/:number/pay`, () => refusal(403, PILOT, 'PAYMENTS_DISABLED')),
+    );
     await openReturn();
     await userEvent.click(screen.getByRole('button', { name: 'Pay again' }));
     expect(await screen.findByText(/aren’t available during the free pilot/)).toBeInTheDocument();
@@ -815,11 +883,19 @@ describe('the bank’s return', () => {
     expect(screen.getByRole('status')).not.toHaveTextContent('newer choice');
   });
 
+  it('opens billing in the organization whose invoice was confirmed', async () => {
+    organizationChoice.choose('org-other');
+    answerConfirm(() => HttpResponse.json({ ...invoice, status: 'PAID' }));
+    await openReturn();
+    expect(organizationChoice.read()).toBe('org-other');
+    await userEvent.click(screen.getByRole('link', { name: 'To your plan and invoices' }));
+    expect(organizationChoice.read()).toBe('org-return');
+  });
   it('confirms nothing with no invoice', async () => {
     server.use(
       http.get(`${API}/invoices/page`, () => HttpResponse.json({ items: [], nextCursor: null })),
     );
-    await openReturn();
+    await openReturn(false);
     expect(screen.getByText('There’s no invoice to confirm.')).toBeInTheDocument();
   });
 
@@ -830,7 +906,7 @@ describe('the bank’s return', () => {
   ])(
     'words a %i and offers trying again only where it can help',
     async (status, message, words, canRetry) => {
-      server.use(http.get(`${API}/invoices/page`, () => refusal(status, message)));
+      server.use(http.post(`${API}/invoices/:number/confirm`, () => refusal(status, message)));
       await openReturn();
       expect(screen.getByRole('alert')).toHaveTextContent(words);
       expect(screen.queryByRole('button', { name: 'Try again' }) !== null).toBe(canRetry);

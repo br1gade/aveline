@@ -2172,8 +2172,8 @@ and existing single-membership index until the controlled cutover. While that ga
 is disabled, a create refusal names the caller's organization only when exactly
 one membership exists; multiple memberships receive a generic 409 without choosing
 an arbitrary tenant. Failed create attempts leave no new organization or intent. No environment
-flag enables them. Shared organization/enquiry/template readers require floor 3
-for combined activation; older running replicas must be excluded before any new
+flag enables them. The combined organization/enquiry/template/payment/renewal readers require floor 5
+for current deployment; older running replicas must be excluded before any new
 enquiry/template behavior is enabled, even while additional memberships are off.
 Organization descriptions add `accessRevision`.
 
@@ -2400,10 +2400,65 @@ cancellation replaces a pending Free change.
 
 Cancelling sets `cancelAtPeriodEnd: true` and leaves the status `ACTIVE`:
 someone who paid for the month keeps the month. Show them
-`currentPeriodEnd`, not "cancelled". A cancel stands even if a plan change
+`paidThrough` (or `currentPeriodEnd` without a reservation), not "cancelled". A cancel stands even if a plan change
 issued before it is paid afterwards. `resume` undoes it until that date passes,
-after which it returns `400` and the answer is to subscribe again. Both need
+after which it returns `400`; select a plan again. Both need
 `billing:write`.
+
+### Manual renewal and invoice return (26 November 2026)
+
+```http
+POST /api/v1/subscription/renew
+POST /api/v1/invoices/:number/pay
+```
+
+Both require `billing:write` and the selected organization. Renewal accepts
+`{provider, expectedPeriodEnd, expectedPriceMinor, expectedCurrency, expectedInterval}`.
+Send the exact `currentPeriodEnd` and displayed plan quote; retain that boundary
+unchanged on retries. Inactive catalog plans and Free, PER_EVENT, cancelled and scheduled-Free subscriptions
+cannot open a renewal. `PILOT_MODE` and configured-provider guards run before
+financial writes. No saved-card charge or automatic retry is enabled.
+
+One live renewal invoice per subscription/boundary captures its price, currency
+and interval. Repeated requests reuse that invoice; a paid stale-boundary replay
+never buys another period. A changed displayed quote returns `409
+RENEWAL_QUOTE_CHANGED`; a changed boundary returns `RENEWAL_PERIOD_CHANGED`.
+`RENEWAL_UNAVAILABLE` and `INVOICE_CLOSED` require reloading billing. A paid future
+reservation blocks changing paid plans (`409 RENEWAL_RESERVED`); refund it through
+support first. An unresolved older renewal blocks a replacement even after
+cancel/resume (`409 RENEWAL_PAYMENT_UNRESOLVED`, action `CONTACT_SUPPORT`): do not
+pay again. Quote/period/closed errors have action `RELOAD`.
+
+Early verified payment reserves the next period, preserving current dates and
+usage; late settlement starts a full period then. Calendar anchors preserve
+month-end and leap-year anniversaries. Current subscription adds `canRenew`,
+`paidThrough` and nullable `pendingRenewal: {number, start, end}`. At the boundary,
+a paid reserved period activates once; an unpaid lapsed period becomes `EXPIRED`.
+Cancellation keeps all purchased coverage; scheduled Free starts after
+`paidThrough`. Unpaid obsolete renewal invoices are voided and late captures
+compensated. Refunding a future renewal removes only that reservation and moves
+scheduled Free back to remaining paid coverage. Refunding the active invoice
+ends its coverage; unresolved refund claims block future activation until
+verified. Bounded sweeps recover activation and completed refund consequences.
+
+Invoice responses add `kind: PURCHASE | RENEWAL`, nullable `periodStart`, `periodEnd`
+and `renewalAnchorEnd`. Legacy invoices remain PURCHASE with unknown period fields.
+`POST /invoices/:number/pay` takes `{provider}` and retries that exact open invoice
+and its original purchase intent, with its captured terms, using existing safe
+payment-attempt replacement rules. Confirm remains authoritative.
+
+The bank return URL now includes app-owned `invoice=<number>` and
+`organization=<id>`, set by the backend after invoice issuance (also on custom
+same-origin URLs). They are lookup identifiers, never authorization or payment
+proof. The client preserves only valid app identity/language through sign-in,
+drops bank parameters, and confirms the exact invoice using the explicit
+`x-aveline-organization-id` header; retries use the same organization and invoice.
+A missing/invalid pair confirms nothing. Never fall back to the newest invoice.
+Already-registered legacy bank forms keep their generic return address; their
+payments settle through reconciliation and invoice history, without guessing identity.
+
+Deployment requires reader floor **5** and exclusion of all older writers before
+migration; older settlement/refund logic cannot interpret reserved periods.
 
 ### Invoices
 
@@ -4232,8 +4287,8 @@ So you can plan around them rather than discover them:
   2026: a French reader gets the event's language, then English.
 - **No unsubscribe line in the mail body.** Guest mail carries the one-click
   `List-Unsubscribe` header; a visible link needs a client page to land on.
-- **No renewal or dunning.** A subscription's period lapses and nothing
-  charges again or moves it to `PAST_DUE`.
+- **No automatic renewal, card binding or dunning.** Manual renewal is built;
+  a lapsed unpaid period expires without another charge or a `PAST_DUE` grace period.
 - Additional memberships require the controlled schema/runtime cutover and shared write gate. See organization selection.
 - **No block creation outside the arrangement call.** Custom RSVP questions can be reordered atomically through the question-order route.
 - **Worker/frontend acceptance.** Automatic seating and all export formats run

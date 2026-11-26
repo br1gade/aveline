@@ -39,6 +39,9 @@ function readLine(wire: unknown): InvoiceLine[] {
 
 export function readInvoice(wire: InvoiceWire): Invoice {
   return {
+    kind: wire.kind ?? 'PURCHASE',
+    periodStart: wire.periodStart ?? null,
+    periodEnd: wire.periodEnd ?? null,
     number: wire.number,
     status: wire.status,
     subtotalMinor: wire.subtotalMinor,
@@ -91,6 +94,9 @@ export function readSubscription(wire: SubscriptionWire): Subscription {
   const { key, name, priceMinor, currency, interval, display } = wire.plan;
   const pending = wire.pendingFree ?? null;
   return {
+    canRenew: wire.canRenew ?? false,
+    paidThrough: wire.paidThrough ?? wire.currentPeriodEnd,
+    pendingRenewal: wire.pendingRenewal ?? null,
     status: wire.status,
     plan: { key, name, priceMinor, currency, interval, display: readPlanDisplay(display) },
     currentPeriodEnd: wire.currentPeriodEnd,
@@ -101,8 +107,11 @@ export function readSubscription(wire: SubscriptionWire): Subscription {
 
 /** `invoice` and `payment` are optional only to the type: openapi-fetch drops a field typed `null`. */
 interface ChoiceWire {
-  subscription: { pendingFree?: PendingFree | null } | null;
-  invoice?: unknown;
+  subscription: {
+    pendingFree?: PendingFree | null;
+    pendingRenewal?: { number: string; start: string; end: string } | null;
+  } | null;
+  invoice?: { number?: string; status?: string; periodStart?: string | null } | null;
   payment?: { redirectUrl: string | null } | null;
 }
 
@@ -111,8 +120,16 @@ interface ChoiceWire {
  * answer carries `pendingFree` (FR-135). A paid one goes on at the bank's page.
  */
 export function readChoice(wire: ChoiceWire): PlanChoice {
+  if (wire.invoice?.status === 'PAID') return paidChoice(wire);
   if (wire.invoice !== null && wire.invoice !== undefined)
     return { kind: 'bank', redirectUrl: wire.payment?.redirectUrl ?? null };
   const pending = wire.subscription?.pendingFree;
   return pending ? { kind: 'scheduled', effectiveAt: pending.effectiveAt } : { kind: 'activated' };
+}
+
+function paidChoice(wire: ChoiceWire): PlanChoice {
+  const reserved = wire.subscription?.pendingRenewal;
+  return reserved && reserved.number === wire.invoice?.number
+    ? { kind: 'scheduled', effectiveAt: reserved.start }
+    : { kind: 'activated' };
 }

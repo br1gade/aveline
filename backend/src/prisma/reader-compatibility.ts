@@ -1,7 +1,7 @@
 import { ServiceUnavailableException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 
-export const CURRENT_READER_REVISION = 4;
+export const CURRENT_READER_REVISION = 5;
 export interface ReaderCompatibility { minimumRevision: number }
 
 /** The floor covers all shared readers, independently of membership activation. */

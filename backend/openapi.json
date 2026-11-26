@@ -7189,6 +7189,67 @@
         ]
       }
     },
+    "/api/v1/subscription/renew": {
+      "post": {
+        "description": "Requires the displayed quote and currentPeriodEnd. Early payment reserves the next period; late payment buys a full period at settlement. No saved-card charge.",
+        "operationId": "SubscriptionsController_renew",
+        "parameters": [
+          {
+            "name": "X-Aveline-Organization-Id",
+            "in": "header",
+            "required": false,
+            "description": "Explicit organization selection. Resource-scoped requests must match their own organization.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9_-]+$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RenewSubscriptionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionsController_renewResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Structured application error; status and machine code identify the refusal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Manually pay for the next subscription period",
+        "tags": [
+          "billing"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/subscription/pending-free": {
       "delete": {
         "operationId": "SubscriptionsController_withdrawFreeChange",
@@ -7453,6 +7514,74 @@
           }
         },
         "summary": "One invoice, with the line items captured at issue",
+        "tags": [
+          "billing"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/invoices/{number}/pay": {
+      "post": {
+        "operationId": "SubscriptionsController_payInvoice",
+        "parameters": [
+          {
+            "name": "number",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Aveline-Organization-Id",
+            "in": "header",
+            "required": false,
+            "description": "Explicit organization selection. Resource-scoped requests must match their own organization.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9_-]+$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PayInvoiceDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionsController_payInvoiceResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Structured application error; status and machine code identify the refusal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Pay or retry the exact open invoice without changing its purchase intent",
         "tags": [
           "billing"
         ],
@@ -18876,6 +19005,28 @@
       "InvoiceResponseDto": {
         "type": "object",
         "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "PURCHASE",
+              "RENEWAL"
+            ]
+          },
+          "periodStart": {
+            "format": "date-time",
+            "type": "string",
+            "nullable": true
+          },
+          "periodEnd": {
+            "format": "date-time",
+            "type": "string",
+            "nullable": true
+          },
+          "renewalAnchorEnd": {
+            "format": "date-time",
+            "type": "string",
+            "nullable": true
+          },
           "number": {
             "type": "string"
           },
@@ -18951,6 +19102,10 @@
           }
         },
         "required": [
+          "kind",
+          "periodStart",
+          "periodEnd",
+          "renewalAnchorEnd",
           "number",
           "status",
           "subtotalMinor",
@@ -19008,6 +19163,62 @@
         },
         "required": [
           "planKey"
+        ]
+      },
+      "RenewSubscriptionDto": {
+        "type": "object",
+        "properties": {
+          "provider": {
+            "type": "string",
+            "enum": [
+              "AMERIABANK",
+              "INECOBANK",
+              "IDBANK",
+              "FAKE"
+            ]
+          },
+          "expectedPeriodEnd": {
+            "type": "string",
+            "description": "The currentPeriodEnd being renewed; repeat it unchanged on retry."
+          },
+          "expectedPriceMinor": {
+            "type": "string"
+          },
+          "expectedCurrency": {
+            "type": "string"
+          },
+          "expectedInterval": {
+            "type": "string",
+            "enum": [
+              "MONTHLY",
+              "YEARLY",
+              "PER_EVENT"
+            ]
+          }
+        },
+        "required": [
+          "provider",
+          "expectedPeriodEnd",
+          "expectedPriceMinor",
+          "expectedCurrency",
+          "expectedInterval"
+        ]
+      },
+      "PayInvoiceDto": {
+        "type": "object",
+        "properties": {
+          "provider": {
+            "type": "string",
+            "enum": [
+              "AMERIABANK",
+              "INECOBANK",
+              "IDBANK",
+              "FAKE"
+            ]
+          }
+        },
+        "required": [
+          "provider"
         ]
       },
       "EmailFeedbackDto": {
@@ -21574,6 +21785,12 @@
           "code": {
             "type": "string",
             "enum": [
+              "RENEWAL_UNAVAILABLE",
+              "RENEWAL_PERIOD_CHANGED",
+              "RENEWAL_QUOTE_CHANGED",
+              "RENEWAL_RESERVED",
+              "RENEWAL_PAYMENT_UNRESOLVED",
+              "INVOICE_CLOSED",
               "GALLERY_UPLOADS_DISABLED",
               "EXPORT_OUTPUT_LIMIT",
               "ADMISSION_TARGET_NOT_FOUND",
@@ -21780,6 +21997,12 @@
           "code": {
             "type": "string",
             "enum": [
+              "RENEWAL_UNAVAILABLE",
+              "RENEWAL_PERIOD_CHANGED",
+              "RENEWAL_QUOTE_CHANGED",
+              "RENEWAL_RESERVED",
+              "RENEWAL_PAYMENT_UNRESOLVED",
+              "INVOICE_CLOSED",
               "GALLERY_UPLOADS_DISABLED",
               "EXPORT_OUTPUT_LIMIT",
               "ADMISSION_TARGET_NOT_FOUND",
@@ -39200,6 +39423,35 @@
                 "type": "string",
                 "format": "date-time",
                 "nullable": true
+              },
+              "pendingRenewal": {
+                "type": "object",
+                "properties": {
+                  "number": {
+                    "type": "string"
+                  },
+                  "start": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "end": {
+                    "type": "string",
+                    "format": "date-time"
+                  }
+                },
+                "required": [
+                  "number",
+                  "start",
+                  "end"
+                ],
+                "nullable": true
+              },
+              "paidThrough": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "canRenew": {
+                "type": "boolean"
               }
             },
             "required": [
@@ -39211,7 +39463,10 @@
               "currentPeriodEnd",
               "cancelAtPeriodEnd",
               "cancelledAt",
-              "trialEndsAt"
+              "trialEndsAt",
+              "pendingRenewal",
+              "paidThrough",
+              "canRenew"
             ],
             "nullable": true
           }
@@ -39391,6 +39646,35 @@
                     "type": "string",
                     "format": "date-time",
                     "nullable": true
+                  },
+                  "pendingRenewal": {
+                    "type": "object",
+                    "properties": {
+                      "number": {
+                        "type": "string"
+                      },
+                      "start": {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      "end": {
+                        "type": "string",
+                        "format": "date-time"
+                      }
+                    },
+                    "required": [
+                      "number",
+                      "start",
+                      "end"
+                    ],
+                    "nullable": true
+                  },
+                  "paidThrough": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "canRenew": {
+                    "type": "boolean"
                   }
                 },
                 "required": [
@@ -39402,7 +39686,10 @@
                   "currentPeriodEnd",
                   "cancelAtPeriodEnd",
                   "cancelledAt",
-                  "trialEndsAt"
+                  "trialEndsAt",
+                  "pendingRenewal",
+                  "paidThrough",
+                  "canRenew"
                 ]
               },
               "invoice": {
@@ -39595,6 +39882,35 @@
                     "type": "string",
                     "format": "date-time",
                     "nullable": true
+                  },
+                  "pendingRenewal": {
+                    "type": "object",
+                    "properties": {
+                      "number": {
+                        "type": "string"
+                      },
+                      "start": {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      "end": {
+                        "type": "string",
+                        "format": "date-time"
+                      }
+                    },
+                    "required": [
+                      "number",
+                      "start",
+                      "end"
+                    ],
+                    "nullable": true
+                  },
+                  "paidThrough": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "canRenew": {
+                    "type": "boolean"
                   }
                 },
                 "required": [
@@ -39606,13 +39922,38 @@
                   "currentPeriodEnd",
                   "cancelAtPeriodEnd",
                   "cancelledAt",
-                  "trialEndsAt"
+                  "trialEndsAt",
+                  "pendingRenewal",
+                  "paidThrough",
+                  "canRenew"
                 ],
                 "nullable": true
               },
               "invoice": {
                 "type": "object",
                 "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "PURCHASE",
+                      "RENEWAL"
+                    ]
+                  },
+                  "periodStart": {
+                    "type": "string",
+                    "format": "date-time",
+                    "nullable": true
+                  },
+                  "periodEnd": {
+                    "type": "string",
+                    "format": "date-time",
+                    "nullable": true
+                  },
+                  "renewalAnchorEnd": {
+                    "type": "string",
+                    "format": "date-time",
+                    "nullable": true
+                  },
                   "number": {
                     "type": "string"
                   },
@@ -39720,6 +40061,10 @@
                   }
                 },
                 "required": [
+                  "kind",
+                  "periodStart",
+                  "periodEnd",
+                  "renewalAnchorEnd",
                   "number",
                   "status",
                   "subtotalMinor",
@@ -39792,6 +40137,431 @@
               "payment"
             ]
           }
+        ]
+      },
+      "SubscriptionsController_renewResponse": {
+        "type": "object",
+        "properties": {
+          "subscription": {
+            "type": "object",
+            "properties": {
+              "pendingFree": {
+                "type": "object",
+                "properties": {
+                  "planKey": {
+                    "type": "string"
+                  },
+                  "effectiveAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  }
+                },
+                "required": [
+                  "planKey",
+                  "effectiveAt"
+                ],
+                "nullable": true
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "CANCELLED",
+                  "EXPIRED",
+                  "TRIALING",
+                  "ACTIVE",
+                  "PAST_DUE"
+                ]
+              },
+              "plan": {
+                "type": "object",
+                "properties": {
+                  "key": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "tier": {
+                    "type": "string"
+                  },
+                  "priceMinor": {
+                    "type": "string"
+                  },
+                  "currency": {
+                    "type": "string"
+                  },
+                  "interval": {
+                    "type": "string",
+                    "enum": [
+                      "MONTHLY",
+                      "YEARLY",
+                      "PER_EVENT"
+                    ]
+                  },
+                  "display": {
+                    "type": "object",
+                    "properties": {
+                      "locale": {
+                        "type": "string",
+                        "enum": [
+                          "hy",
+                          "en",
+                          "ru",
+                          "fr",
+                          null
+                        ],
+                        "nullable": true
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "interval": {
+                        "type": "string"
+                      },
+                      "features": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "key": {
+                              "type": "string"
+                            },
+                            "label": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "key",
+                            "label"
+                          ]
+                        }
+                      }
+                    },
+                    "required": [
+                      "locale",
+                      "name",
+                      "interval",
+                      "features"
+                    ]
+                  }
+                },
+                "required": [
+                  "key",
+                  "name",
+                  "tier",
+                  "priceMinor",
+                  "currency",
+                  "interval",
+                  "display"
+                ]
+              },
+              "entitlements": {
+                "type": "object",
+                "properties": {
+                  "maxEventsPerPeriod": {
+                    "type": "number",
+                    "nullable": true
+                  },
+                  "maxGuestsPerEvent": {
+                    "type": "number",
+                    "nullable": true
+                  },
+                  "maxLocales": {
+                    "type": "number"
+                  },
+                  "invitationLifetimeDays": {
+                    "type": "number",
+                    "nullable": true
+                  },
+                  "features": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "maxEventsPerPeriod",
+                  "maxGuestsPerEvent",
+                  "maxLocales",
+                  "invitationLifetimeDays",
+                  "features"
+                ]
+              },
+              "currentPeriodStart": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "currentPeriodEnd": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "cancelAtPeriodEnd": {
+                "type": "boolean"
+              },
+              "cancelledAt": {
+                "type": "string",
+                "format": "date-time",
+                "nullable": true
+              },
+              "trialEndsAt": {
+                "type": "string",
+                "format": "date-time",
+                "nullable": true
+              },
+              "pendingRenewal": {
+                "type": "object",
+                "properties": {
+                  "number": {
+                    "type": "string"
+                  },
+                  "start": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "end": {
+                    "type": "string",
+                    "format": "date-time"
+                  }
+                },
+                "required": [
+                  "number",
+                  "start",
+                  "end"
+                ],
+                "nullable": true
+              },
+              "paidThrough": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "canRenew": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "pendingFree",
+              "status",
+              "plan",
+              "entitlements",
+              "currentPeriodStart",
+              "currentPeriodEnd",
+              "cancelAtPeriodEnd",
+              "cancelledAt",
+              "trialEndsAt",
+              "pendingRenewal",
+              "paidThrough",
+              "canRenew"
+            ],
+            "nullable": true
+          },
+          "invoice": {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "PURCHASE",
+                  "RENEWAL"
+                ]
+              },
+              "periodStart": {
+                "type": "string",
+                "format": "date-time",
+                "nullable": true
+              },
+              "periodEnd": {
+                "type": "string",
+                "format": "date-time",
+                "nullable": true
+              },
+              "renewalAnchorEnd": {
+                "type": "string",
+                "format": "date-time",
+                "nullable": true
+              },
+              "number": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "DRAFT",
+                  "ISSUED",
+                  "PAID",
+                  "VOID",
+                  "UNCOLLECTIBLE"
+                ]
+              },
+              "subtotalMinor": {
+                "type": "string"
+              },
+              "taxMinor": {
+                "type": "string"
+              },
+              "totalMinor": {
+                "type": "string"
+              },
+              "currency": {
+                "type": "string"
+              },
+              "lines": {
+                "anyOf": [
+                  {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "boolean"
+                      },
+                      {
+                        "type": "object",
+                        "properties": {},
+                        "additionalProperties": {
+                          "anyOf": [
+                            {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "number"
+                                },
+                                {
+                                  "type": "boolean"
+                                },
+                                {},
+                                {
+                                  "type": "array",
+                                  "items": {}
+                                }
+                              ]
+                            },
+                            {
+                              "type": "string",
+                              "nullable": true,
+                              "enum": [
+                                null
+                              ]
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "type": "array",
+                        "items": {}
+                      }
+                    ]
+                  },
+                  {
+                    "type": "string",
+                    "nullable": true,
+                    "enum": [
+                      null
+                    ]
+                  }
+                ]
+              },
+              "issuedAt": {
+                "type": "string",
+                "format": "date-time",
+                "nullable": true
+              },
+              "dueAt": {
+                "type": "string",
+                "format": "date-time",
+                "nullable": true
+              },
+              "paidAt": {
+                "type": "string",
+                "format": "date-time",
+                "nullable": true
+              },
+              "paymentOrderNumber": {
+                "type": "string",
+                "nullable": true
+              }
+            },
+            "required": [
+              "kind",
+              "periodStart",
+              "periodEnd",
+              "renewalAnchorEnd",
+              "number",
+              "status",
+              "subtotalMinor",
+              "taxMinor",
+              "totalMinor",
+              "currency",
+              "lines",
+              "issuedAt",
+              "dueAt",
+              "paidAt",
+              "paymentOrderNumber"
+            ]
+          },
+          "payment": {
+            "type": "object",
+            "properties": {
+              "orderNumber": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "PENDING",
+                  "FAILED",
+                  "CANCELLED",
+                  "CREATED",
+                  "AUTHORIZED",
+                  "CAPTURED",
+                  "REFUNDED",
+                  "PARTIALLY_REFUNDED",
+                  "EXPIRED"
+                ]
+              },
+              "provider": {
+                "type": "string"
+              },
+              "amountMinor": {
+                "type": "string"
+              },
+              "refundedMinor": {
+                "type": "string"
+              },
+              "currency": {
+                "type": "string"
+              },
+              "redirectUrl": {
+                "type": "string",
+                "nullable": true
+              },
+              "failureReason": {
+                "type": "string",
+                "nullable": true
+              }
+            },
+            "required": [
+              "orderNumber",
+              "status",
+              "provider",
+              "amountMinor",
+              "refundedMinor",
+              "currency",
+              "redirectUrl",
+              "failureReason"
+            ],
+            "nullable": true
+          }
+        },
+        "required": [
+          "subscription",
+          "invoice",
+          "payment"
         ]
       },
       "SubscriptionsController_withdrawFreeChangeResponse": {
@@ -39960,6 +40730,35 @@
             "type": "string",
             "format": "date-time",
             "nullable": true
+          },
+          "pendingRenewal": {
+            "type": "object",
+            "properties": {
+              "number": {
+                "type": "string"
+              },
+              "start": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "end": {
+                "type": "string",
+                "format": "date-time"
+              }
+            },
+            "required": [
+              "number",
+              "start",
+              "end"
+            ],
+            "nullable": true
+          },
+          "paidThrough": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "canRenew": {
+            "type": "boolean"
           }
         },
         "required": [
@@ -39971,7 +40770,10 @@
           "currentPeriodEnd",
           "cancelAtPeriodEnd",
           "cancelledAt",
-          "trialEndsAt"
+          "trialEndsAt",
+          "pendingRenewal",
+          "paidThrough",
+          "canRenew"
         ]
       },
       "SubscriptionsController_cancelResponse": {
@@ -40140,6 +40942,35 @@
             "type": "string",
             "format": "date-time",
             "nullable": true
+          },
+          "pendingRenewal": {
+            "type": "object",
+            "properties": {
+              "number": {
+                "type": "string"
+              },
+              "start": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "end": {
+                "type": "string",
+                "format": "date-time"
+              }
+            },
+            "required": [
+              "number",
+              "start",
+              "end"
+            ],
+            "nullable": true
+          },
+          "paidThrough": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "canRenew": {
+            "type": "boolean"
           }
         },
         "required": [
@@ -40151,7 +40982,10 @@
           "currentPeriodEnd",
           "cancelAtPeriodEnd",
           "cancelledAt",
-          "trialEndsAt"
+          "trialEndsAt",
+          "pendingRenewal",
+          "paidThrough",
+          "canRenew"
         ]
       },
       "SubscriptionsController_resumeResponse": {
@@ -40320,6 +41154,35 @@
             "type": "string",
             "format": "date-time",
             "nullable": true
+          },
+          "pendingRenewal": {
+            "type": "object",
+            "properties": {
+              "number": {
+                "type": "string"
+              },
+              "start": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "end": {
+                "type": "string",
+                "format": "date-time"
+              }
+            },
+            "required": [
+              "number",
+              "start",
+              "end"
+            ],
+            "nullable": true
+          },
+          "paidThrough": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "canRenew": {
+            "type": "boolean"
           }
         },
         "required": [
@@ -40331,14 +41194,253 @@
           "currentPeriodEnd",
           "cancelAtPeriodEnd",
           "cancelledAt",
-          "trialEndsAt"
+          "trialEndsAt",
+          "pendingRenewal",
+          "paidThrough",
+          "canRenew"
         ]
       },
-      "SubscriptionsController_confirmResponse": {
-        "anyOf": [
-          {
+      "SubscriptionsController_payInvoiceResponse": {
+        "type": "object",
+        "properties": {
+          "subscription": {
             "type": "object",
             "properties": {
+              "pendingFree": {
+                "type": "object",
+                "properties": {
+                  "planKey": {
+                    "type": "string"
+                  },
+                  "effectiveAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  }
+                },
+                "required": [
+                  "planKey",
+                  "effectiveAt"
+                ],
+                "nullable": true
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "CANCELLED",
+                  "EXPIRED",
+                  "TRIALING",
+                  "ACTIVE",
+                  "PAST_DUE"
+                ]
+              },
+              "plan": {
+                "type": "object",
+                "properties": {
+                  "key": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "tier": {
+                    "type": "string"
+                  },
+                  "priceMinor": {
+                    "type": "string"
+                  },
+                  "currency": {
+                    "type": "string"
+                  },
+                  "interval": {
+                    "type": "string",
+                    "enum": [
+                      "MONTHLY",
+                      "YEARLY",
+                      "PER_EVENT"
+                    ]
+                  },
+                  "display": {
+                    "type": "object",
+                    "properties": {
+                      "locale": {
+                        "type": "string",
+                        "enum": [
+                          "hy",
+                          "en",
+                          "ru",
+                          "fr",
+                          null
+                        ],
+                        "nullable": true
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "interval": {
+                        "type": "string"
+                      },
+                      "features": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "key": {
+                              "type": "string"
+                            },
+                            "label": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "key",
+                            "label"
+                          ]
+                        }
+                      }
+                    },
+                    "required": [
+                      "locale",
+                      "name",
+                      "interval",
+                      "features"
+                    ]
+                  }
+                },
+                "required": [
+                  "key",
+                  "name",
+                  "tier",
+                  "priceMinor",
+                  "currency",
+                  "interval",
+                  "display"
+                ]
+              },
+              "entitlements": {
+                "type": "object",
+                "properties": {
+                  "maxEventsPerPeriod": {
+                    "type": "number",
+                    "nullable": true
+                  },
+                  "maxGuestsPerEvent": {
+                    "type": "number",
+                    "nullable": true
+                  },
+                  "maxLocales": {
+                    "type": "number"
+                  },
+                  "invitationLifetimeDays": {
+                    "type": "number",
+                    "nullable": true
+                  },
+                  "features": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "maxEventsPerPeriod",
+                  "maxGuestsPerEvent",
+                  "maxLocales",
+                  "invitationLifetimeDays",
+                  "features"
+                ]
+              },
+              "currentPeriodStart": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "currentPeriodEnd": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "cancelAtPeriodEnd": {
+                "type": "boolean"
+              },
+              "cancelledAt": {
+                "type": "string",
+                "format": "date-time",
+                "nullable": true
+              },
+              "trialEndsAt": {
+                "type": "string",
+                "format": "date-time",
+                "nullable": true
+              },
+              "pendingRenewal": {
+                "type": "object",
+                "properties": {
+                  "number": {
+                    "type": "string"
+                  },
+                  "start": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "end": {
+                    "type": "string",
+                    "format": "date-time"
+                  }
+                },
+                "required": [
+                  "number",
+                  "start",
+                  "end"
+                ],
+                "nullable": true
+              },
+              "paidThrough": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "canRenew": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "pendingFree",
+              "status",
+              "plan",
+              "entitlements",
+              "currentPeriodStart",
+              "currentPeriodEnd",
+              "cancelAtPeriodEnd",
+              "cancelledAt",
+              "trialEndsAt",
+              "pendingRenewal",
+              "paidThrough",
+              "canRenew"
+            ],
+            "nullable": true
+          },
+          "invoice": {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "PURCHASE",
+                  "RENEWAL"
+                ]
+              },
+              "periodStart": {
+                "type": "string",
+                "format": "date-time",
+                "nullable": true
+              },
+              "periodEnd": {
+                "type": "string",
+                "format": "date-time",
+                "nullable": true
+              },
+              "renewalAnchorEnd": {
+                "type": "string",
+                "format": "date-time",
+                "nullable": true
+              },
               "number": {
                 "type": "string"
               },
@@ -40446,6 +41548,220 @@
               }
             },
             "required": [
+              "kind",
+              "periodStart",
+              "periodEnd",
+              "renewalAnchorEnd",
+              "number",
+              "status",
+              "subtotalMinor",
+              "taxMinor",
+              "totalMinor",
+              "currency",
+              "lines",
+              "issuedAt",
+              "dueAt",
+              "paidAt",
+              "paymentOrderNumber"
+            ]
+          },
+          "payment": {
+            "type": "object",
+            "properties": {
+              "orderNumber": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "PENDING",
+                  "FAILED",
+                  "CANCELLED",
+                  "CREATED",
+                  "AUTHORIZED",
+                  "CAPTURED",
+                  "REFUNDED",
+                  "PARTIALLY_REFUNDED",
+                  "EXPIRED"
+                ]
+              },
+              "provider": {
+                "type": "string"
+              },
+              "amountMinor": {
+                "type": "string"
+              },
+              "refundedMinor": {
+                "type": "string"
+              },
+              "currency": {
+                "type": "string"
+              },
+              "redirectUrl": {
+                "type": "string",
+                "nullable": true
+              },
+              "failureReason": {
+                "type": "string",
+                "nullable": true
+              }
+            },
+            "required": [
+              "orderNumber",
+              "status",
+              "provider",
+              "amountMinor",
+              "refundedMinor",
+              "currency",
+              "redirectUrl",
+              "failureReason"
+            ]
+          }
+        },
+        "required": [
+          "subscription",
+          "invoice",
+          "payment"
+        ]
+      },
+      "SubscriptionsController_confirmResponse": {
+        "anyOf": [
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "PURCHASE",
+                  "RENEWAL"
+                ]
+              },
+              "periodStart": {
+                "type": "string",
+                "format": "date-time",
+                "nullable": true
+              },
+              "periodEnd": {
+                "type": "string",
+                "format": "date-time",
+                "nullable": true
+              },
+              "renewalAnchorEnd": {
+                "type": "string",
+                "format": "date-time",
+                "nullable": true
+              },
+              "number": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "DRAFT",
+                  "ISSUED",
+                  "PAID",
+                  "VOID",
+                  "UNCOLLECTIBLE"
+                ]
+              },
+              "subtotalMinor": {
+                "type": "string"
+              },
+              "taxMinor": {
+                "type": "string"
+              },
+              "totalMinor": {
+                "type": "string"
+              },
+              "currency": {
+                "type": "string"
+              },
+              "lines": {
+                "anyOf": [
+                  {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "boolean"
+                      },
+                      {
+                        "type": "object",
+                        "properties": {},
+                        "additionalProperties": {
+                          "anyOf": [
+                            {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "number"
+                                },
+                                {
+                                  "type": "boolean"
+                                },
+                                {},
+                                {
+                                  "type": "array",
+                                  "items": {}
+                                }
+                              ]
+                            },
+                            {
+                              "type": "string",
+                              "nullable": true,
+                              "enum": [
+                                null
+                              ]
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "type": "array",
+                        "items": {}
+                      }
+                    ]
+                  },
+                  {
+                    "type": "string",
+                    "nullable": true,
+                    "enum": [
+                      null
+                    ]
+                  }
+                ]
+              },
+              "issuedAt": {
+                "type": "string",
+                "format": "date-time",
+                "nullable": true
+              },
+              "dueAt": {
+                "type": "string",
+                "format": "date-time",
+                "nullable": true
+              },
+              "paidAt": {
+                "type": "string",
+                "format": "date-time",
+                "nullable": true
+              },
+              "paymentOrderNumber": {
+                "type": "string",
+                "nullable": true
+              }
+            },
+            "required": [
+              "kind",
+              "periodStart",
+              "periodEnd",
+              "renewalAnchorEnd",
               "number",
               "status",
               "subtotalMinor",
@@ -40513,6 +41829,28 @@
                   "redirectUrl",
                   "failureReason"
                 ]
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "PURCHASE",
+                  "RENEWAL"
+                ]
+              },
+              "periodStart": {
+                "type": "string",
+                "format": "date-time",
+                "nullable": true
+              },
+              "periodEnd": {
+                "type": "string",
+                "format": "date-time",
+                "nullable": true
+              },
+              "renewalAnchorEnd": {
+                "type": "string",
+                "format": "date-time",
+                "nullable": true
               },
               "number": {
                 "type": "string"
@@ -40622,6 +41960,10 @@
             },
             "required": [
               "payment",
+              "kind",
+              "periodStart",
+              "periodEnd",
+              "renewalAnchorEnd",
               "number",
               "status",
               "subtotalMinor",
@@ -45655,6 +46997,13 @@
                         "UNCOLLECTIBLE"
                       ]
                     },
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "PURCHASE",
+                        "RENEWAL"
+                      ]
+                    },
                     "dueAt": {
                       "type": "string",
                       "format": "date-time",
@@ -45662,6 +47011,21 @@
                     },
                     "currency": {
                       "type": "string"
+                    },
+                    "renewalAnchorEnd": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true
+                    },
+                    "periodStart": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true
+                    },
+                    "periodEnd": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true
                     },
                     "lines": {
                       "anyOf": [
@@ -45745,8 +47109,12 @@
                     "totalMinor",
                     "number",
                     "status",
+                    "kind",
                     "dueAt",
                     "currency",
+                    "renewalAnchorEnd",
+                    "periodStart",
+                    "periodEnd",
                     "lines",
                     "issuedAt",
                     "paidAt",

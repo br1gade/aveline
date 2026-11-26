@@ -16,7 +16,8 @@ vi.mock('@/api/session', async (importOriginal) => ({
 const ORIGIN = 'http://api.test';
 const API = `${ORIGIN}/api/v1`;
 const server = setupServer();
-const ADDRESS = 'http://app.test/billing/return?orderId=secret&lang=hy';
+const ADDRESS =
+  'http://app.test/billing/return?orderId=secret&invoice=AV-2026-000001&organization=a';
 const load = () =>
   clientLoader({ request: new Request(ADDRESS) } as unknown as Parameters<typeof clientLoader>[0]);
 
@@ -70,16 +71,12 @@ function memberOf(...names: string[]) {
 describe('coming back from the bank', () => {
   it('sends someone signed out to sign in, without the bank’s query', async () => {
     vi.spyOn(current.session as BrowserSession, 'ensureSignedIn').mockResolvedValue(false);
-    expect(await redirectOf(load())).toBe('/sign-in?next=%2Fbilling%2Freturn');
+    expect(await redirectOf(load())).toBe(
+      '/sign-in?next=%2Fbilling%2Freturn%3Finvoice%3DAV-2026-000001%26organization%3Da',
+    );
   });
 
-  it('sends someone yet to choose an organization to do so, without the query', async () => {
-    signedIn();
-    memberOf('a', 'b');
-    expect(await redirectOf(load())).toBe('/app/organizations?next=%2Fbilling%2Freturn');
-  });
-
-  it('confirms the newest invoice and carries the bank to pay again at', async () => {
+  it('confirms the exact returned invoice with an explicit organization', async () => {
     signedIn();
     memberOf('a');
     payments(true);
@@ -89,7 +86,8 @@ describe('coming back from the bank', () => {
       http.get(`${API}/invoices/page`, () =>
         HttpResponse.json({ items: [newest], nextCursor: null }),
       ),
-      http.post(`${API}/invoices/:number/confirm`, ({ params }) => {
+      http.post(`${API}/invoices/:number/confirm`, ({ params, request }) => {
+        expect(request.headers.get('x-aveline-organization-id')).toBe('a');
         confirmed.push(String(params.number));
         return HttpResponse.json({ ...newest, status: 'PAID' });
       }),
@@ -108,7 +106,11 @@ describe('coming back from the bank', () => {
     server.use(
       http.get(`${API}/invoices/page`, () => HttpResponse.json({ items: [], nextCursor: null })),
     );
-    await expect(load()).resolves.toMatchObject({ read: { kind: 'nothing' } });
+    await expect(
+      clientLoader({
+        request: new Request('http://app.test/billing/return?orderId=secret'),
+      } as unknown as Parameters<typeof clientLoader>[0]),
+    ).resolves.toMatchObject({ read: { kind: 'nothing' } });
   });
 
   it('keeps a confirmed payment when the payment options can’t be read', async () => {
@@ -135,8 +137,13 @@ describe('coming back from the bank', () => {
     server.use(
       http.get(`${API}/invoices/page`, () => HttpResponse.json({ items: [], nextCursor: null })),
     );
+    server.use(
+      http.post(`${API}/invoices/:number/confirm`, () =>
+        HttpResponse.json({ number: 'AV-2026-000001', status: 'PAID' }),
+      ),
+    );
     const loaded = await load();
-    expect(loaded).toMatchObject({ read: { kind: 'nothing' } });
+    expect(loaded).toMatchObject({ read: { kind: 'confirmed' } });
     expect(loaded.provider).toBeUndefined();
   });
 });
@@ -151,6 +158,11 @@ describe('taking the query out of the address', () => {
 
   it('confirms no second time', () => {
     expect(shouldRevalidate(change(''))).toBe(false);
-    expect(shouldRevalidate(change('?lang=hy'))).toBe(false);
+    expect(shouldRevalidate(change('?lang=hy'))).toBe(true);
+    expect(
+      shouldRevalidate(
+        change('?invoice=AV-2026-000002&organization=a', '?invoice=AV-2026-000001&organization=a'),
+      ),
+    ).toBe(true);
   });
 });

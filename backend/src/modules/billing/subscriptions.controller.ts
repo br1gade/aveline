@@ -9,7 +9,7 @@ import {
   RequirePermission,
 } from '../../infra/auth/actor';
 import { GUEST_PAGE_LIMITS } from '../../infra/auth/throttler.guard';
-import { SubscribeDto } from './dto/subscription.dto';
+import { PayInvoiceDto, RenewSubscriptionDto, SubscribeDto } from './dto/subscription.dto';
 import { SubscriptionsService } from './subscriptions.service';
 import { RequestLanguage } from '../../common/request-language';
 import { InvoiceResponseDto } from './dto/billing-response.dto';
@@ -58,6 +58,14 @@ export class SubscriptionsController {
 
   @RequirePermission('billing:write')
   @OrganizationScope()
+  @Post('subscription/renew')
+  @ApiOperation({ summary: 'Manually pay for the next subscription period', description: 'Requires the displayed quote and currentPeriodEnd. Early payment reserves the next period; late payment buys a full period at settlement. No saved-card charge.' })
+  renew(@CurrentActor() actor: RequestActor, @Body() dto: RenewSubscriptionDto, @RequestLanguage() locale: string) {
+    return this.subscriptions.renew(actor.organizationId ?? '', dto, { actor, locale });
+  }
+
+  @RequirePermission('billing:write')
+  @OrganizationScope()
   @Delete('subscription/pending-free')
   @ApiOperation({ summary: 'Withdraw a scheduled Free change before it takes effect' })
   withdrawFreeChange(@CurrentActor() actor: RequestActor, @RequestLanguage() locale: string) {
@@ -101,6 +109,14 @@ export class SubscriptionsController {
   @ApiQuery({ name: 'locale', required: false })
   findInvoice(@CurrentActor() actor: RequestActor, @Param('number') number: string, @RequestLanguage() locale: string) {
     return this.subscriptions.findInvoice(actor.organizationId ?? '', number, locale);
+  }
+
+  @RequirePermission('billing:write')
+  @OrganizationScope()
+  @Post('invoices/:number/pay')
+  @ApiOperation({ summary: 'Pay or retry the exact open invoice without changing its purchase intent' })
+  payInvoice(@CurrentActor() actor: RequestActor, @Param('number') number: string, @Body() dto: PayInvoiceDto, @RequestLanguage() locale: string) {
+    return this.subscriptions.payExistingInvoice(actor.organizationId ?? '', number, dto, { actor, locale });
   }
 
   @RequirePermission('billing:write')

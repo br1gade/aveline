@@ -34,6 +34,18 @@ export class InvoiceLineDto {
 
 @ApiExtraModels(InvoiceLineDto)
 export class InvoiceResponseDto {
+  @ApiProperty({ enum: ['PURCHASE', 'RENEWAL'] })
+  kind!: string;
+
+  @ApiProperty({ type: Date, nullable: true })
+  periodStart!: Date | null;
+
+  @ApiProperty({ type: Date, nullable: true })
+  periodEnd!: Date | null;
+
+  @ApiProperty({ type: Date, nullable: true })
+  renewalAnchorEnd!: Date | null;
+
   @ApiProperty()
   number!: string;
 

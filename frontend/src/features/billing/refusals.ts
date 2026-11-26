@@ -3,6 +3,8 @@ import { isPaymentUncertain, PAYMENT_DISAGREEMENT } from '@/api/payment-disagree
 import { isOrganizationRefusal } from '@/api/session';
 
 type WordedKind =
+  | 'reservedPaid'
+  | 'renewalChanged'
   | 'pilot'
   | 'forbidden'
   | 'noOrganization'
@@ -62,10 +64,18 @@ function bySignal(error: ApiError): BillingRefusal | null {
 /** Billing is the organization's owner's (`billing:*`), and a refusal is worded (FR-6). */
 export function billingRefusalOf(error: unknown): BillingRefusal {
   if (!isApiError(error)) throw error;
-  const signal = bySignal(error);
+  const signal = renewalRefusal(error) ?? bySignal(error);
   if (signal) return signal;
   const { messages, requestId } = error;
   const known = SENTENCES.find(([pattern]) => messages.some((message) => pattern.test(message)));
   if (known) return { kind: known[1], isStale: STALE.has(known[1]), requestId };
   return { kind: 'other', sentence: messages.join(' ') };
+}
+
+function renewalRefusal({ code, requestId }: ApiError): BillingRefusal | null {
+  if (code === 'RENEWAL_RESERVED') return { kind: 'reservedPaid', requestId };
+  if (code === 'RENEWAL_PAYMENT_UNRESOLVED') return { kind: 'uncertain', requestId };
+  if (code?.startsWith('RENEWAL_') || code === 'INVOICE_CLOSED')
+    return { kind: 'renewalChanged', requestId, isStale: true };
+  return null;
 }

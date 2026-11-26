@@ -1,4 +1,5 @@
 import { APP_PATHS, ROUTE_PATHS } from '@/route-paths';
+import { billingReturnPath } from '@/lib/routing/billing-return';
 
 /**
  * Where to go after signing in. `?next=` comes from the address bar, so only a path inside the app
@@ -8,6 +9,9 @@ import { APP_PATHS, ROUTE_PATHS } from '@/route-paths';
 export function safeNext(next: string | null): string {
   if (!next || next.includes('\\') || next.startsWith('//')) {
     return APP_PATHS.app;
+  }
+  if (next.startsWith(`${ROUTE_PATHS.billingPaymentReturn}?`)) {
+    return billingReturnPath(new URL(next, 'https://app.invalid'));
   }
   const isInsideApp =
     next === ROUTE_PATHS.billingPaymentReturn ||

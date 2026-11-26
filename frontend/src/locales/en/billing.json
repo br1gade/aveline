@@ -10,7 +10,9 @@
     "none": "Your organization hasn’t chosen a plan. You can choose one below.",
     "cancel": "Cancel at the end of the period",
     "resume": "Keep the plan",
-    "movesToFree": "Moves to the free plan on {{date}}."
+    "movesToFree": "Moves to the free plan on {{date}}.",
+    "renew": "Renew plan",
+    "renewalReserved": "Next period paid: {{start}}–{{end}}."
   },
   "standing": {
     "active": "Active until {{date}}.",
@@ -78,6 +80,11 @@
       "title": "Pay invoice {{name}}?",
       "body": "{{price}}. You’ll go to the bank’s page to pay. Nothing changes until it’s paid.",
       "confirm": "Go to the bank"
+    },
+    "renew": {
+      "title": "Renew {{name}}?",
+      "body": "Pay {{price}} for one more period. Early payment reserves the next period and keeps your current paid time. If the period has ended, the new period starts when payment is confirmed. This does not enable automatic charging.",
+      "confirm": "Continue to bank"
     }
   },
   "status": {
@@ -123,7 +130,9 @@
     "rateLimited": "Too many requests just now. Wait a minute, then try again.",
     "noAnswer": "We didn’t get an answer. Check your connection and try again.",
     "other": "This couldn’t be done.",
-    "refunding": "This payment is already being refunded. You don’t need to do anything."
+    "refunding": "This payment is already being refunded. You don’t need to do anything.",
+    "renewalChanged": "Billing has changed. Reload the page and check the paid periods before continuing.",
+    "reservedPaid": "Your next period is already paid. To change to another paid plan now, contact support to refund that future period first."
   },
   "chooseOrganization": "Choose an organization",
   "return": {
@@ -140,7 +149,8 @@
     "payAgain": "Pay again",
     "toBilling": "To your plan and invoices",
     "replacedOpen": "This invoice was replaced by a newer choice of plan. If you paid it at the bank, that money comes back to you by itself. You don’t need to do anything.",
-    "refunded": "This invoice was withdrawn, and what was paid for it goes back to you."
+    "refunded": "This invoice was withdrawn, and what was paid for it goes back to you.",
+    "renewalPaid": "Payment received for your renewal. The purchased period is shown in Billing."
   },
   "pricing": {
     "title": "Prices",

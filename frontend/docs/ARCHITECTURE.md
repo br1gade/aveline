@@ -435,7 +435,7 @@ Pure, safe to render on the server, light on JavaScript. Specified by
   and check the payload, the server's HTML and the page; a production build was checked the same way.
 - **The bank's return for a plan** is protected as a capability page, as its query may name the
   payment's order number (`/tickets/return` already was, by its path). It stores nothing: confirm is
-  asked of the newest invoice (PD-130), and the order number stops at `features/billing/read.ts`.
+  asked of the exact returned invoice and organization (FR-110d, 26 November 2026), and the order number stops at `features/billing/read.ts`.
 - **The data-request form** (`/privacy-request`, design PD-156) holds what someone types about a person,
   so like checkout its page is `no-store`, with no copy for the Back button of a shared computer. The
   address and notes go in a POST and leave the page when sent; a production build was checked for them
@@ -950,7 +950,7 @@ size check in the CSV's send that the disabled button already covers. **None of 
 | 4 Nov 2026 | **Strings load by who needs them** (§8) | The budget would otherwise guard little: 187 KB of the guest page was every feature's words, and each new namespace added more. i18next reads the shared object by reference, and React Router loads a route's module before rendering it, so nothing becomes asynchronous. This wasn't in the brief; it was proposed in the plan and accepted |
 | 4 Nov 2026 | `bankAddress` and `leaveForBank` move to `lib/links/bank.ts`, and `useDropBankQuery` to `lib/routing` | Billing is their second caller |
 | 4 Nov 2026 | The organization header is added in `api/fetch.ts`, only on paths in `api/organization-scope.ts`, pinned by a test that reads the controllers | An event's route is a 409 on a mismatch, which would refuse events invited onto from elsewhere; nothing declares which routes take it (FR-116) |
-| 4 Nov 2026 | The bank's return confirms the newest invoice, storing nothing | The return can't name it, and at most one plan invoice is open; a stored number would be one more thing to keep and to get wrong (PD-130, FR-110) |
+| 4 Nov 2026 | Historical: the return confirmed the newest invoice (superseded 26 November by exact invoice/organization correlation) | The return can't name it, and at most one plan invoice is open; a stored number would be one more thing to keep and to get wrong (PD-130, FR-110) |
 | 4 Nov 2026 | An authored template's preview starts in its route's `clientLoader`, a new one on each read | A preview changes nothing on the invitation, expires and goes stale by design, and a reload then simply gets a fresh one; an effect would have made two under StrictMode |
 | 4 Nov 2026 | The drawn plan has no scaling: one API unit is one CSS pixel, in a canvas that scrolls | The API says "the editor's own units"; scaling to a phone would shrink tables below a finger, and adds arithmetic to get wrong |
 | 4 Nov 2026 | The answers to the host's questions and the guest book are two pages beside the sheets, not more sections on it; the sheets' section, rows and header move to `event-sheets/components/parts.tsx` | Each is a read of its own and can be long, and the sheets page stays one read of the dashboard (docs/API.md §6). The answers page asks for the language in the address and marks what comes back with the language the response names (§6) |
@@ -1110,7 +1110,7 @@ size check in the CSV's send that the disabled button already covers. **None of 
   come, as are a real refusal of permission, which the walk's browser can't produce, and a code on a printed
   page. How long a code should be held, and how often a real picture freezes without saying so, need a real door
   (PD-173).
-- Of billing: the bank's return naming its invoice (FR-110 d) and renewal (FR-110 e); a printable invoice (PD-209); a
+- Of billing: automatic renewal and dunning; a printable invoice (PD-209); a
   real bank: only the mock's return has been followed, and the two payments only staff can settle (FR-199) only in
   unit tests.
 
@@ -1226,3 +1226,15 @@ size check in the CSV's send that the disabled button already covers. **None of 
 - The Telegram reminders button isn't wanted (C-26). `guest.telegramLink` stays unread, and the link in
   the invitation's email, which since `9827cf5` carries a separate start code and not the guest's token, is the backend's (BQ-11). The guest's table is
   shown on the personal card since 30 October 2026 (design PD-71).
+
+26 November 2026 — FR-110(d/e) implemented and adopted: valid app-owned invoice
+and organization identity survives sign-in while bank query parameters are removed.
+Confirm/retry pin that organization explicitly and never select the newest invoice.
+Renew is an explicit quoted purchase; prepaid next-period dates are shown separately
+from the current period. Invoice retry preserves its intent. Automatic charging,
+bank acceptance, native-copy review and fiscal-document decisions remain separate.
+
+26 November 2026 — stale-revision dialog retries wait for the refreshed Router
+match snapshot to commit, including an unchanged loader value. A completed network
+revalidation alone can precede React's commit; enabling retry then sends the old
+revision again. Unmount and failed revalidation release the wait.

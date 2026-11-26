@@ -3,7 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { Link, useRevalidator } from 'react-router';
 
 import { isApiError } from '@/api/errors';
-import { browserSession } from '@/api/session';
+import { forgetSettledOrganization } from '@/features/account';
+import { browserSession, organizationChoice } from '@/api/session';
 import { bankAddress, leaveForBank } from '@/lib/links';
 import { APP_PATHS } from '@/route-paths';
 import { Notice, type NoticeTone } from '@/ui';
@@ -11,7 +12,7 @@ import { SupportContacts } from '@/ui/support-contacts';
 import { WRAPPING_BUTTON } from '@/ui/app-form';
 import { Button } from '@/ui/kit/button';
 
-import { choosePlan } from '../api';
+import { payInvoice } from '../api';
 import type { ReturnRead } from '../load';
 import { billingRefusalOf, type BillingRefusal } from '../refusals';
 import { returnOutcome, type ReturnOutcome } from '../return-outcome';
@@ -30,17 +31,24 @@ const TONES: Readonly<Record<ReturnOutcome, NoticeTone>> = {
 };
 
 /** A payment that ended without money: the same plan again answers with one that can be made. */
-function PayAgain({ invoice, provider }: { invoice: Invoice; provider: PaymentProvider }) {
+function PayAgain({
+  invoice,
+  provider,
+  organizationId,
+}: {
+  invoice: Invoice;
+  provider: PaymentProvider;
+  organizationId?: string | undefined;
+}) {
   const { t } = useTranslation('billing');
   const [refusal, setRefusal] = useState<BillingRefusal | null>(null);
   const [isBusy, setIsBusy] = useState(false);
-  const planKey = invoice.lines[0]?.planKey;
-  if (!planKey) return null;
+  if (!organizationId || !provider || !invoice.lines[0]?.planKey) return null;
   const payAgain = async () => {
     setRefusal(null);
     setIsBusy(true);
     try {
-      const made = await choosePlan(browserSession().api, planKey, provider);
+      const made = await payInvoice(browserSession().api, invoice.number, provider, organizationId);
       // No bank page for a paid plan: the backend keeps an attempt whose outcome is unknown.
       if (made.kind === 'bank' && made.redirectUrl === null)
         return setRefusal({ kind: 'uncertain' });
@@ -82,16 +90,30 @@ function CheckAgain({ labelKey }: { labelKey: 'return.checkAgain' | 'return.tryA
   );
 }
 
-function Confirmed({ invoice, provider }: { invoice: Invoice; provider: PaymentProvider }) {
+function Confirmed({
+  invoice,
+  provider,
+  organizationId,
+}: {
+  invoice: Invoice;
+  provider: PaymentProvider;
+  organizationId?: string | undefined;
+}) {
   const { t } = useTranslation('billing');
   const outcome = returnOutcome(invoice);
   return (
     <>
       <Notice role="status" tone={TONES[outcome]}>
-        {t(`return.${outcome}`)}
+        {t(
+          outcome === 'paid' && invoice.kind === 'RENEWAL'
+            ? 'return.renewalPaid'
+            : `return.${outcome}`,
+        )}
       </Notice>
       {outcome === 'awaitingBank' ? <CheckAgain labelKey="return.checkAgain" /> : null}
-      {outcome === 'notPaid' ? <PayAgain invoice={invoice} provider={provider} /> : null}
+      {outcome === 'notPaid' ? (
+        <PayAgain invoice={invoice} provider={provider} organizationId={organizationId} />
+      ) : null}
     </>
   );
 }
@@ -134,10 +156,17 @@ export function BillingReturnPage({
     <section className="flex max-w-[40rem] flex-col gap-4">
       <h1 className="m-0 font-serif text-[28px] leading-[34px] font-normal">{t('return.title')}</h1>
       {read.kind === 'nothing' ? <p className="m-0">{t('return.nothing')}</p> : null}
-      {read.kind === 'confirmed' ? <Confirmed invoice={read.invoice} provider={provider} /> : null}
+      {read.kind === 'confirmed' ? (
+        <Confirmed
+          invoice={read.invoice}
+          provider={provider}
+          organizationId={read.organizationId}
+        />
+      ) : null}
       {read.kind === 'refused' ? <Refused refusal={read.refusal} /> : null}
       <Link
         to={APP_PATHS.billing}
+        onClick={() => selectReturnedOrganization(read)}
         className="text-primary inline-flex min-h-11 items-center self-start underline underline-offset-4 hover:no-underline"
       >
         {t('return.toBilling')}
@@ -158,4 +187,10 @@ export function BillingReturnFailed({ error }: { error: unknown }) {
       provider={undefined}
     />
   );
+}
+
+function selectReturnedOrganization(read: ReturnRead) {
+  if (read.kind !== 'confirmed' || !read.organizationId) return;
+  organizationChoice.choose(read.organizationId);
+  forgetSettledOrganization();
 }

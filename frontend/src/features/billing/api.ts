@@ -58,10 +58,58 @@ export async function withdrawFreeChange(api: ApiClient): Promise<void> {
 }
 
 /** Asks the bank, server to server. Safe to call twice (docs/API.md §6). */
-export async function confirmInvoice(api: ApiClient, number: string): Promise<Invoice> {
+export async function confirmInvoice(
+  api: ApiClient,
+  number: string,
+  organizationId: string,
+): Promise<Invoice> {
   return readConfirmed(
     await expectData(
-      api.POST('/api/v1/invoices/{number}/confirm', { params: { path: { number } } }),
+      api.POST('/api/v1/invoices/{number}/confirm', {
+        params: { path: { number } },
+        headers: { 'x-aveline-organization-id': organizationId },
+      }),
+    ),
+  );
+}
+
+export async function renewPlan(
+  api: ApiClient,
+  subscription: Subscription,
+  provider: PaymentProvider,
+): Promise<PlanChoice> {
+  const { plan } = subscription;
+  if (!provider || (plan.interval !== 'MONTHLY' && plan.interval !== 'YEARLY'))
+    throw new Error('Payment unavailable');
+  return readChoice(
+    await expectData(
+      api.POST('/api/v1/subscription/renew', {
+        body: {
+          provider,
+          expectedPeriodEnd: subscription.currentPeriodEnd,
+          expectedPriceMinor: plan.priceMinor,
+          expectedCurrency: plan.currency,
+          expectedInterval: plan.interval,
+        },
+      }),
+    ),
+  );
+}
+
+export async function payInvoice(
+  api: ApiClient,
+  number: string,
+  provider: PaymentProvider,
+  organizationId?: string,
+): Promise<PlanChoice> {
+  if (!provider) throw new Error('Payment unavailable');
+  return readChoice(
+    await expectData(
+      api.POST('/api/v1/invoices/{number}/pay', {
+        params: { path: { number } },
+        body: { provider },
+        ...(organizationId ? { headers: { 'x-aveline-organization-id': organizationId } } : {}),
+      }),
     ),
   );
 }

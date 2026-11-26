@@ -34,11 +34,16 @@ describe('the bank’s query in the address', () => {
     await expect.poll(() => screen.getByTestId('search').textContent).toBe('');
   });
 
-  it('keeps a language that spells a parameter as the language, not the parameter', async () => {
+  it('drops malformed language data with the bank parameters', async () => {
     open('/billing/return?orderId=x&lang=hy%26orderId%3Dy');
+    await expect.poll(() => screen.getByTestId('search').textContent).toBe('');
+  });
+
+  it('keeps exact app invoice identity while removing bank identifiers', async () => {
+    open('/billing/return?invoice=AV-2026-000001&organization=org-a&orderId=secret&lang=hy');
     await expect
       .poll(() => screen.getByTestId('search').textContent)
-      .toBe('?lang=hy%26orderId%3Dy');
+      .toBe('?invoice=AV-2026-000001&organization=org-a&lang=hy');
   });
 
   it('leaves an address holding only the language alone', async () => {

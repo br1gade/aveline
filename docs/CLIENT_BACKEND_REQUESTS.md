@@ -139,7 +139,7 @@ Write the reproducing test first at its cheapest meaningful layer, confirm the r
 | FR-107 | What a brief's sections carry beyond their purpose | S4 ticketing/vendors/billing | Implemented; vendor HTTP and snapshot verification recorded; merged in `75e22e8` |
 | FR-108 | Withdraw a brief link without making another | S4 ticketing/vendors/billing | Implemented; vendor HTTP and snapshot verification recorded; merged in `75e22e8` |
 | FR-109 | Say whether paid plans can be bought, and with which banks, as FR-64 asks of tickets, and give the pilot' | S4 ticketing/vendors/billing | Implemented in `dc9f4c2` on 15 November 2026 and client adopted 16 November. Provider acceptance remains open |
-| FR-110 | Billing's data | S4 ticketing/vendors/billing | (a–c) backend implemented 23 November: localized display, captured line fields and invoice pages; client adopted in `46d87a4` on 25 November. (f) scheduled Free implemented and adopted under FR-135. (d) return-page correlation and (e) renewal remain backend work |
+| FR-110 | Billing's data | S4 ticketing/vendors/billing | (a–c) backend implemented 23 November: localized display, captured line fields and invoice pages; client adopted in `46d87a4` on 25 November. (f) scheduled Free implemented and adopted under FR-135. (d/e) exact invoice/organization returns and manual renewal implemented with coordinated frontend adoption on 26 November |
 | FR-111 | Tell "analytics is off" from "no views", and count songs per venue | S3 host/guest operations | Audit and implement |
 | FR-112 | Approve several photos in one request | S3 host/guest operations | Audit and implement |
 | FR-113 | The drawn plan's writes | S3 host/guest operations | Audit and implement |
@@ -311,10 +311,10 @@ cases previously returned successfully; they now return `502 PAYMENT_OUTCOME_UNK
 with the same uncertainty message the current client already handles. The API contract also documents
 the access-review reasons `LAST_OWNER_CLOSURE` and `INACTIVE_OWNER_RECOVERY`.
 
-Remaining **backend feature work** is FR-110(d), bank-return invoice correlation,
-and FR-110(e), renewal. **Frontend printing** awaits the fiscal-document decision
+**FR-110(d/e) app work is implemented:** exact invoice/organization return confirmation,
+invoice-specific retry and customer-confirmed manual renewal. Automatic charging remains deferred. **Frontend printing** awaits the fiscal-document decision
 (PD-209); native-language review is separate acceptance. **Deployment/configuration**
-still requires reader floor 4, stopping writers before migration, `seed:production`
+still requires reader floor 5, stopping writers before migration, `seed:production`
 and payment-email delivery checks. **Provider acceptance** still requires staging
 bank-lifetime, interrupted-registration, late-capture and refund rehearsals.
 **Business/legal** decisions on the bank/certification, fiscal rules, ticket seller

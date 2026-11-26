@@ -5,10 +5,10 @@ import { browserSession } from '@/api/session';
 import { bankAddress, leaveForBank } from '@/lib/links';
 import { AskFirstDialog, useDialogAction, type DialogContext } from '@/ui/app-form';
 
-import { choosePlan } from '../api';
+import { choosePlan, payInvoice, renewPlan } from '../api';
 import { billingRefusalOf, type BillingRefusal } from '../refusals';
 import type { ChoiceKind } from '../plans';
-import type { PaymentProvider, PlanChoice } from '../types';
+import type { PaymentProvider, PlanChoice, Subscription } from '../types';
 import { BillingProblem } from './shared';
 
 /** A plan to choose, or an open invoice's plan to pay again, as far as the question needs it. */
@@ -16,7 +16,9 @@ export interface Choice {
   planKey: string;
   name: string;
   price: string;
-  kind: ChoiceKind | 'pay';
+  kind: ChoiceKind | 'pay' | 'renew';
+  renewal?: Subscription;
+  invoiceNumber?: string;
   /** The bank to send a paid plan to; a free plan names none. */
   provider: PaymentProvider;
 }
@@ -57,7 +59,7 @@ export function ChooseDialog({ choice, onPilot, ...context }: ChooseDialogProps)
     let made: PlanChoice = { kind: 'activated' };
     void run(
       async () => {
-        made = await choosePlan(browserSession().api, choice.planKey, choice.provider);
+        made = await payChoice(choice);
         if (made.kind !== 'bank') return;
         if (made.redirectUrl === null) throw PAYMENT_UNSETTLED;
         const address = bankAddress(made.redirectUrl, window.location.origin);
@@ -80,4 +82,11 @@ export function ChooseDialog({ choice, onPilot, ...context }: ChooseDialogProps)
       onConfirm={confirm}
     />
   );
+}
+
+function payChoice(choice: Choice) {
+  const api = browserSession().api;
+  if (choice.invoiceNumber) return payInvoice(api, choice.invoiceNumber, choice.provider);
+  if (choice.renewal) return renewPlan(api, choice.renewal, choice.provider);
+  return choosePlan(api, choice.planKey, choice.provider);
 }

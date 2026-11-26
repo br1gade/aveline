@@ -261,7 +261,7 @@ input and paid acceptance scenarios. Sources: [payments](PAYMENTS.md), F35 in [b
 ### PP2 — Event packages, add-ons and recurring billing (F31, F32, F34)
 
 - [ ] Implement per-event package purchase and add-ons.
-- [ ] Implement subscription renewal/dunning with explicit consent, payment-method
+- [ ] Implement automatic subscription renewal/dunning (manual renewal built 26 November) with explicit consent, payment-method
   support and agreed retry, cancellation and notification rules.
 - [ ] Revisit deferred plan/entitlement enforcement using pilot evidence; agree
   limits, overage behavior and existing-customer treatment before enforcing them.

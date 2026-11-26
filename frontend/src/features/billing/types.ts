@@ -40,6 +40,9 @@ export interface PendingFree {
 }
 
 export interface Subscription {
+  canRenew?: boolean;
+  paidThrough?: string;
+  pendingRenewal?: { number: string; start: string; end: string } | null;
   status: string;
   plan: Pick<Plan, 'key' | 'name' | 'priceMinor' | 'currency' | 'interval' | 'display'>;
   currentPeriodEnd: string;
@@ -58,6 +61,9 @@ export interface InvoiceLine {
 }
 
 export interface Invoice {
+  kind?: 'PURCHASE' | 'RENEWAL';
+  periodStart?: string | null;
+  periodEnd?: string | null;
   number: string;
   status: string;
   subtotalMinor: string;
