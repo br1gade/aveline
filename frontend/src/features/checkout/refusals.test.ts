@@ -64,15 +64,18 @@ describe('checkout refusals, told apart until FR-63 gives codes', () => {
       refused(
         502,
         'Payment registration outcome is unknown. Keep this purchase and confirm with support before trying another payment',
+        { code: 'PAYMENT_OUTCOME_UNKNOWN' },
       ),
       'uncertain',
     ],
     [
-      refused(502, 'Bank amount does not match this payment; operator reconciliation required'),
+      refused(502, 'Bank amount does not match this payment; operator reconciliation required', {
+        code: 'PAYMENT_AMOUNT_MISMATCH',
+      }),
       'uncertain',
     ],
-    // A sentence alone, on another status, is not the payment's (docs/API.md §6).
-    [refused(500, 'Payment registration outcome is unknown.'), 'noAnswer'],
+    // The code decides, never the sentence (docs/API.md §6, FR-199).
+    [refused(502, 'Payment registration outcome is unknown.'), 'noAnswer'],
     [refused(500, 'Internal server error'), 'noAnswer'],
   ])('%#: reads as %s', (error, kind) => {
     expect(checkoutRefusal(error).kind).toBe(kind);

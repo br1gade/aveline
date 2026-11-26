@@ -10,7 +10,8 @@ export type ReturnOutcome =
 /**
  * `EXPIRED` counts only as confirm answers it: confirm asks the bank about an attempt it registered,
  * and moves it to the bank's own state, which is never `EXPIRED` (docs/PAYMENTS.md, registration
- * recovery). One whose outcome is unknown comes back as a `502` instead (`isPaymentUncertain`).
+ * recovery). One whose outcome is unknown, an old attempt with no bank reference included, comes
+ * back as `502 PAYMENT_OUTCOME_UNKNOWN` instead (`isPaymentUncertain`).
  */
 const ENDED_WITHOUT_MONEY: ReadonlySet<string> = new Set(['FAILED', 'CANCELLED', 'EXPIRED']);
 const MONEY_MOVED: ReadonlySet<string> = new Set(['CAPTURED', 'REFUNDED', 'PARTIALLY_REFUNDED']);

@@ -1039,6 +1039,7 @@ size check in the CSV's send that the disabled button already covers. **None of 
 | 25 Nov 2026 | **Cursor lists share `useMoreByCursor` in `ui/app-form`** (customers, data requests, invoices, access reviews) | Four lists needed the same "Show more"; a new first page, as after a revalidation, starts each over. The members' list and agreements keep their own for now |
 | 25 Nov 2026 | **The price list asks for the page's language** (`createVisitorApi(incoming, language)`) | The server's read sent `Accept-Language: *`, so plans' translated words (FR-110) would always have come in English |
 | 25 Nov 2026 | **Two payment `502`s are known by their words** (`isPaymentUncertain`, design PD-216, FR-199) | Only staff can settle them, and a retry or a new order could start a second payment; they have no code yet |
+| 26 Nov 2026 | **The two payment `502`s are known by their codes,** `PAYMENT_OUTCOME_UNKNOWN` and `PAYMENT_AMOUNT_MISMATCH` (`isPaymentUncertain`, FR-199), typed from the generated error envelope; supersedes the entry above, and PD-216 is withdrawn | The backend gave them codes at `4726381`; a sentence without the code is now "no answer". Confirm's new `PAYMENT_OUTCOME_UNKNOWN` for an old attempt with no bank reference takes the same path |
 
 ## 12. Not yet built
 
@@ -1110,7 +1111,7 @@ size check in the CSV's send that the disabled button already covers. **None of 
   page. How long a code should be held, and how often a real picture freezes without saying so, need a real door
   (PD-173).
 - Of billing: the bank's return naming its invoice (FR-110 d) and renewal (FR-110 e); a printable invoice (PD-209); a
-  real bank: only the mock's return has been followed, and the two payments only staff can settle (PD-216) only in
+  real bank: only the mock's return has been followed, and the two payments only staff can settle (FR-199) only in
   unit tests.
 
 - The organizer app beyond its way in, an event's details, its guest list, its venues, its

@@ -653,6 +653,7 @@ describe('refusals and retries (PD-80)', () => {
       refusal(
         502,
         'Payment registration outcome is unknown. Keep this purchase and confirm with support before trying another payment',
+        { code: 'PAYMENT_OUTCOME_UNKNOWN', action: 'CONTACT_SUPPORT' },
       ),
     );
     const { user } = renderCheckout('general.1');

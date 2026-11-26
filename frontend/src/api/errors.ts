@@ -22,10 +22,11 @@ export interface FieldFeedback {
 }
 
 /**
- * The backend's own classification. `code` follows the status alone, except
- * `ATTENDANCE_CHANGED` and the organization, template and enquiry routes' own codes; `userMessage`
- * is a generic sentence per code, so the pages keep their own words and read only `code` and
- * `details`.
+ * The backend's own classification. `code` follows the status, unless the refusal has a domain code
+ * of its own (`ATTENDANCE_CHANGED`, `PAYMENTS_DISABLED`, `PAYMENT_OUTCOME_UNKNOWN`, the organization,
+ * template and enquiry routes' codes and more: the error envelope's enum in `openapi.json`);
+ * `userMessage` is a generic sentence per code, so the pages keep their own words and read only
+ * `code` and `details`.
  */
 export interface ErrorFeedback {
   code: string | undefined;

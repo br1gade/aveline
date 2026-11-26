@@ -734,12 +734,20 @@ describe('the bank’s return', () => {
     );
   });
 
+  // PAYMENT_OUTCOME_UNKNOWN also answers confirm for an old attempt with no bank reference: its
+  // status then proves nothing, so nothing is said of money not taken (docs/API.md §6).
   it.each([
-    'Payment registration outcome is unknown. Keep this purchase and confirm with support before trying another payment',
-    'Bank amount does not match this payment; operator reconciliation required',
+    [
+      'PAYMENT_OUTCOME_UNKNOWN',
+      'Payment registration outcome is unknown. Keep this purchase and confirm with support before trying another payment',
+    ],
+    [
+      'PAYMENT_AMOUNT_MISMATCH',
+      'Bank amount does not match this payment; operator reconciliation required',
+    ],
   ])(
-    'says whom to contact, and offers nothing again, for a payment only staff can settle: %s',
-    async (message) => {
+    'says whom to contact, offers nothing again and promises nothing, for %s',
+    async (code, message) => {
       vi.stubEnv('VITE_SUPPORT_EMAIL', 'help@example.am');
       onTestFinished(() => {
         vi.unstubAllEnvs();
@@ -749,11 +757,12 @@ describe('the bank’s return', () => {
           HttpResponse.json({ items: [invoice], nextCursor: null }),
         ),
       );
-      answerConfirm(() => refusal(502, message, 'BAD_GATEWAY'));
+      answerConfirm(() => refusal(502, message, code));
       await openReturn();
       expect(screen.getByRole('alert')).toHaveTextContent('our team needs to check it');
       expect(screen.getByRole('alert')).toHaveTextContent('req-1');
       expect(screen.queryByRole('button', { name: /again/i })).not.toBeInTheDocument();
+      expect(screen.queryByText(/nothing was charged|didn’t go through/)).not.toBeInTheDocument();
       expect(screen.getByRole('link', { name: 'help@example.am' })).toBeInTheDocument();
     },
   );

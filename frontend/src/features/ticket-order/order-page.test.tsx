@@ -39,9 +39,9 @@ const TOKEN = `tok-${crypto.randomUUID()}`;
 const server = setupServer();
 const reads = { get: 0, confirm: 0, listing: 0 };
 
-function refusal(status: number, message = 'No') {
+function refusal(status: number, message = 'No', code?: string) {
   return HttpResponse.json(
-    { statusCode: status, message, requestId: `r-${status}` },
+    { statusCode: status, message, code, requestId: `r-${status}` },
     { status, headers: { 'x-request-id': `r-${status}` } },
   );
 }
@@ -481,20 +481,41 @@ describe("the bank's return (PD-82)", () => {
     expect(reads.get).toBe(0);
   });
 
-  it('offers no new payment when only staff can settle it, and says whom to contact', async () => {
-    vi.stubEnv('VITE_SUPPORT_TELEGRAM', 'aveline_help');
-    onTestFinished(() => {
-      vi.unstubAllEnvs();
-    });
+  // PAYMENT_OUTCOME_UNKNOWN also answers confirm for an old attempt with no bank reference: its
+  // status then proves nothing, so nothing is said of money not taken (docs/API.md §6).
+  it.each([
+    [
+      'PAYMENT_OUTCOME_UNKNOWN',
+      'Payment registration outcome is unknown. Keep this purchase and confirm with support before trying another payment',
+    ],
+    [
+      'PAYMENT_AMOUNT_MISMATCH',
+      'Bank amount does not match this payment; operator reconciliation required',
+    ],
+  ])(
+    'offers no new payment for %s, promises nothing, and says whom to contact',
+    async (code, message) => {
+      vi.stubEnv('VITE_SUPPORT_TELEGRAM', 'aveline_help');
+      onTestFinished(() => {
+        vi.unstubAllEnvs();
+      });
+      holdOrder({ accessToken: TOKEN });
+      serveConfirm(() => refusal(502, message, code));
+      renderAt('/tickets/return');
+      const alert = await screen.findByRole('alert');
+      expect(alert).toHaveTextContent('our team needs to check it');
+      expect(within(alert).getByRole('link', { name: '@aveline_help' })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('link', { name: 'Choose tickets again' })).not.toBeInTheDocument();
+      expect(screen.queryByText(/nothing was charged/)).not.toBeInTheDocument();
+    },
+  );
+
+  it('still offers trying again for a 502 that isn’t about a payment', async () => {
     holdOrder({ accessToken: TOKEN });
-    serveConfirm(() =>
-      refusal(502, 'Bank amount does not match this payment; operator reconciliation required'),
-    );
+    serveConfirm(() => refusal(502, 'Payment registration outcome is unknown.'));
     renderAt('/tickets/return');
-    const alert = await screen.findByRole('alert');
-    expect(alert).toHaveTextContent('our team needs to check it');
-    expect(within(alert).getByRole('link', { name: '@aveline_help' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument();
+    await screen.findByRole('button', { name: 'Try again' });
   });
 
   it('explains a hold that ended, and what happens to money taken late', async () => {
