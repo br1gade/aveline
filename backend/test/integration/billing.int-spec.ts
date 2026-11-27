@@ -1,5 +1,7 @@
 import { BillingInterval, PaymentProvider, PlanTier, PrismaClient, SubscriptionStatus } from '@prisma/client';
 import { captureInvitationLifetime } from '../../src/modules/invitations/lifetime';
+import { applyDueRenewal, settleRenewal } from '../../src/modules/billing/renewal-state';
+import { lockBillingOrganization } from '../../src/modules/billing/scheduled-free';
 import { nextInvoiceSequence } from '../../src/modules/billing/invoice-number';
 import { SubscriptionsService } from '../../src/modules/billing/subscriptions.service';
 import { PaymentGatewayRegistry } from '../../src/modules/payments/payment-gateway.registry';
@@ -576,6 +578,37 @@ describe('billing (integration)', () => {
         await expect(subscriptions.renew(organizationId, quote(current.currentPeriodEnd))).rejects.toMatchObject({ code: 'RENEWAL_UNAVAILABLE' });
         expect([await prisma.invoice.count(), await prisma.payment.count()]).toEqual(before);
       });
+
+    it.each([
+      { interval: BillingInterval.MONTHLY, hasReservation: false, start: '2001-01-31', end: '2001-02-28', ends: ['2001-03-31', '2001-04-30'] },
+      { interval: BillingInterval.MONTHLY, hasReservation: true, start: '2001-01-31', end: '2001-02-28', ends: ['2001-03-31', '2001-04-30'] },
+      { interval: BillingInterval.YEARLY, hasReservation: false, start: '2024-02-29', end: '2025-02-28', ends: ['2026-02-28', '2027-02-28', '2028-02-29'] },
+    ])('preserves a legacy $interval anniversary across renewals (existing reservation: $hasReservation)', async (fixture) => {
+      const paid = await plan({ key: 'legacy-calendar', priceMinor: 5000n, interval: fixture.interval });
+      let subscription = await prisma.subscription.create({ data: { organizationId, planId: paid.id, status: 'ACTIVE',
+        currentPeriodStart: new Date(fixture.start), currentPeriodEnd: new Date(fixture.end), billingAnchorAt: null } });
+      // Two or three fixed cycles expose clamping without depending on the test machine's date.
+      for (const [index, expectedEnd] of fixture.ends.entries()) {
+        const boundary = subscription.currentPeriodEnd;
+        const paidAt = new Date(boundary);
+        paidAt.setUTCDate(1);
+        const orderNumber = `legacy-${fixture.interval}-${index}`;
+        const invoice = await prisma.invoice.create({ data: { organizationId, subscriptionId: subscription.id, planId: paid.id,
+          number: `AV-${paidAt.getUTCFullYear()}-${String(index + 1).padStart(6, '0')}`, kind: 'RENEWAL', status: 'PAID', paidAt,
+          renewalAnchorEnd: boundary, intervalSnapshot: fixture.interval, subtotalMinor: 5000n, totalMinor: 5000n,
+          paymentOrderNumber: orderNumber,
+          ...(fixture.hasReservation && index === 0 ? { periodStart: boundary, periodEnd: new Date(expectedEnd) } : {}) } });
+        await prisma.payment.create({ data: { organizationId, invoiceId: invoice.id, purpose: 'SUBSCRIPTION', provider: 'FAKE',
+          amountMinor: 5000n, currency: 'AMD', orderNumber, idempotencyKey: orderNumber, status: 'CAPTURED' } });
+        await prisma.$transaction(async (tx) => {
+          await lockBillingOrganization(tx, organizationId);
+          if (!fixture.hasReservation || index > 0) await settleRenewal(tx, invoice, paidAt);
+          await applyDueRenewal(tx, organizationId, boundary);
+        });
+        subscription = await prisma.subscription.findUniqueOrThrow({ where: { id: subscription.id } });
+        expect(subscription.currentPeriodEnd).toEqual(new Date(expectedEnd));
+      }
+    });
     it('rejects a changed quote before issuing a charge', async () => {
       const current = await buyPeriod();
       const count = await prisma.invoice.count();

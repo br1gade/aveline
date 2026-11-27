@@ -430,3 +430,7 @@ index permits one ISSUED/PAID renewal per subscription/anchor; unresolved earlie
 payment attempts prevent replacement across voided invoices. Subscription's
 currentPeriodInvoiceId explicitly owns current paid coverage, with billingAnchorAt
 preserving calendar anniversaries. Legacy source IDs remain null; no guessed backfill.
+The first renewal activation captures a legacy row's known currentPeriodStart as
+its calendar anchor before advancing that start, including an existing paid
+reservation. Later clamping preserves that anniversary. A late renewal starts
+a new anchor at its verified settlement time.

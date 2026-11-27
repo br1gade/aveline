@@ -34,12 +34,17 @@ export async function settleRenewal(tx: Prisma.TransactionClient, invoice: Invoi
 }
 
 async function activateRenewal(tx: Prisma.TransactionClient, invoice: Invoice, now: Date) {
-  if (!invoice.periodStart || !invoice.periodEnd || !invoice.subscriptionId || !invoice.planId) return;
+  if (!invoice.periodStart || !invoice.periodEnd || !invoice.subscriptionId || !invoice.planId || !invoice.renewalAnchorEnd) return;
+  const subscription = await tx.subscription.findUniqueOrThrow({ where: { id: invoice.subscriptionId },
+    select: { billingAnchorAt: true, currentPeriodStart: true } });
+  // Legacy rows and already-paid reservations need the anniversary before this start advances.
+  const anchor = invoice.periodStart > invoice.renewalAnchorEnd ? invoice.periodStart
+    : subscription.billingAnchorAt ?? subscription.currentPeriodStart;
   await tx.invoice.update({ where: { id: invoice.id }, data: { activatedAt: now } });
   await tx.subscription.update({ where: { id: invoice.subscriptionId }, data: {
     status: invoice.periodEnd > now ? 'ACTIVE' : 'EXPIRED', planId: invoice.planId,
     currentPeriodStart: invoice.periodStart, currentPeriodEnd: invoice.periodEnd, currentPeriodInvoiceId: invoice.id,
-    ...(invoice.renewalAnchorEnd && invoice.periodStart > invoice.renewalAnchorEnd ? { billingAnchorAt: invoice.periodStart } : {}),
+    billingAnchorAt: anchor,
   } });
 }
 
