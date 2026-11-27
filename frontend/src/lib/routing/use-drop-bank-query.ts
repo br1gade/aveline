@@ -5,7 +5,8 @@ import { ROUTE_PATHS } from '@/route-paths';
 
 /**
  * The bank's parameters on its return may name its order number, which opens the payment's state
- * (docs/API.md §9), so they leave the address at once. The chosen language stays.
+ * (docs/API.md §9), so they leave the address at once. The chosen language stays, and on the bank's
+ * return so do the app's own invoice and organization, which name what to confirm (FR-110 d).
  */
 export function useDropBankQuery(): void {
   const location = useLocation();

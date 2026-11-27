@@ -39,10 +39,19 @@ export interface PendingFree {
   effectiveAt: string;
 }
 
+/** A next period paid early, which starts when the current one ends (FR-110 e). */
+export interface PendingRenewal {
+  number: string;
+  start: string;
+  end: string;
+}
+
 export interface Subscription {
-  canRenew?: boolean;
-  paidThrough?: string;
-  pendingRenewal?: { number: string; start: string; end: string } | null;
+  /** The backend's say on "Renew plan"; it weighs status, cancellation, Free changes and the plan. */
+  canRenew: boolean;
+  /** The current period's end, or the reserved one's when a renewal is paid for. */
+  paidThrough: string;
+  pendingRenewal: PendingRenewal | null;
   status: string;
   plan: Pick<Plan, 'key' | 'name' | 'priceMinor' | 'currency' | 'interval' | 'display'>;
   currentPeriodEnd: string;
@@ -61,9 +70,7 @@ export interface InvoiceLine {
 }
 
 export interface Invoice {
-  kind?: 'PURCHASE' | 'RENEWAL';
-  periodStart?: string | null;
-  periodEnd?: string | null;
+  kind: 'PURCHASE' | 'RENEWAL';
   number: string;
   status: string;
   subtotalMinor: string;

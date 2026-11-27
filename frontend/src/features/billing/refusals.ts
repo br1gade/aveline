@@ -72,10 +72,18 @@ export function billingRefusalOf(error: unknown): BillingRefusal {
   return { kind: 'other', sentence: messages.join(' ') };
 }
 
+/** The renewal codes whose action is `RELOAD` (docs/API.md, "Manual renewal"). */
+const RENEWAL_RELOADS: ReadonlySet<string> = new Set([
+  'RENEWAL_UNAVAILABLE',
+  'RENEWAL_PERIOD_CHANGED',
+  'RENEWAL_QUOTE_CHANGED',
+  'INVOICE_CLOSED',
+]);
+
 function renewalRefusal({ code, requestId }: ApiError): BillingRefusal | null {
   if (code === 'RENEWAL_RESERVED') return { kind: 'reservedPaid', requestId };
   if (code === 'RENEWAL_PAYMENT_UNRESOLVED') return { kind: 'uncertain', requestId };
-  if (code?.startsWith('RENEWAL_') || code === 'INVOICE_CLOSED')
+  if (code && RENEWAL_RELOADS.has(code))
     return { kind: 'renewalChanged', requestId, isStale: true };
   return null;
 }

@@ -1040,6 +1040,9 @@ size check in the CSV's send that the disabled button already covers. **None of 
 | 25 Nov 2026 | **The price list asks for the page's language** (`createVisitorApi(incoming, language)`) | The server's read sent `Accept-Language: *`, so plans' translated words (FR-110) would always have come in English |
 | 25 Nov 2026 | **Two payment `502`s are known by their words** (`isPaymentUncertain`, design PD-216, FR-199) | Only staff can settle them, and a retry or a new order could start a second payment; they have no code yet |
 | 26 Nov 2026 | **The two payment `502`s are known by their codes,** `PAYMENT_OUTCOME_UNKNOWN` and `PAYMENT_AMOUNT_MISMATCH` (`isPaymentUncertain`, FR-199), typed from the generated error envelope; supersedes the entry above, and PD-216 is withdrawn | The backend gave them codes at `4726381`; a sentence without the code is now "no answer". Confirm's new `PAYMENT_OUTCOME_UNKNOWN` for an old attempt with no bank reference takes the same path |
+| 26 Nov 2026 | **The bank's return confirms the invoice and organization it names** (`billingReturnContext`, `billingReturnPath` in `lib/routing/billing-return.ts`; `confirmReturnedInvoice`), kept through sign-in while the bank's own query is dropped; confirm and "Pay again" name that organization; a renewal is a quoted purchase (`renewPlan`) and an open invoice is paid again as itself (`payInvoice`). Written by the backend team in `8360c12`; supersedes the 4 November entry above (design PD-130, PD-217) | FR-110 (d, e): the return can name its invoice now, so the newest needn't be guessed, and paying an invoice again keeps what it was for |
+| 26 Nov 2026 | **`reloadAndWait` waits until the reloaded data is on screen** (`useReloadAndWait` in `ui/app-form/page-status.ts`): until the router's matches change, or the page unmounts. Written by the backend team in `8360c12` | React Router settles `revalidate()` before React commits, so a dialog freed then would send the refused revision again on the second press |
+| 27 Nov 2026 | **The client adopts the backend's `8360c12` billing as its own:** an `EXPIRED` plan reads as lapsed, with "Renew plan" when the backend says `canRenew`; the renewal fields are required in `features/billing/types.ts`, as the schema declares them, and an invoice's periods, which nothing shows, are not read; only the renewal codes whose action is `RELOAD` read the page again (`RENEWAL_RELOADS`) (design PD-217) | `8360c12` changed the client in the backend's commit. `EXPIRED` read "has ended, choose a plan" beside a renew button; optional fields with fallbacks hid what the schema already guarantees; and any unknown `RENEWAL_` code would have been read as a reload |
 
 ## 12. Not yet built
 
@@ -1226,15 +1229,3 @@ size check in the CSV's send that the disabled button already covers. **None of 
 - The Telegram reminders button isn't wanted (C-26). `guest.telegramLink` stays unread, and the link in
   the invitation's email, which since `9827cf5` carries a separate start code and not the guest's token, is the backend's (BQ-11). The guest's table is
   shown on the personal card since 30 October 2026 (design PD-71).
-
-26 November 2026 — FR-110(d/e) implemented and adopted: valid app-owned invoice
-and organization identity survives sign-in while bank query parameters are removed.
-Confirm/retry pin that organization explicitly and never select the newest invoice.
-Renew is an explicit quoted purchase; prepaid next-period dates are shown separately
-from the current period. Invoice retry preserves its intent. Automatic charging,
-bank acceptance, native-copy review and fiscal-document decisions remain separate.
-
-26 November 2026 — stale-revision dialog retries wait for the refreshed Router
-match snapshot to commit, including an unchanged loader value. A completed network
-revalidation alone can precede React's commit; enabling retry then sends the old
-revision again. Unmount and failed revalidation release the wait.

@@ -120,7 +120,7 @@ test('manual early renewal reserves the next period and keeps current paid time'
   await page.getByRole('button', { name: 'Renew plan' }).click();
   const dialog = page.getByRole('alertdialog');
   await expect(dialog).toContainText('This does not enable automatic charging');
-  await dialog.getByRole('button', { name: 'Continue to bank' }).click();
+  await dialog.getByRole('button', { name: 'Go to the bank' }).click();
   await settleLatestReturn(page, seen.requests);
   await expect(
     page.getByText('Payment received for your renewal.', { exact: false }),

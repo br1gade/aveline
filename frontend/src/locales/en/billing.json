@@ -18,6 +18,7 @@
     "active": "Active until {{date}}.",
     "ending": "Ends on {{date}}. You keep it until then, and can still keep it.",
     "lapsed": "The period ended on {{date}}. Nothing renews by itself: choose a plan to start again.",
+    "lapsedRenew": "The period ended on {{date}}. Renew it to start a new period, or choose another plan.",
     "trial": "On trial until {{date}}.",
     "pastDue": "A payment is overdue. The period runs until {{date}}.",
     "ended": "This plan has ended. Choose a plan to start again.",
@@ -84,7 +85,7 @@
     "renew": {
       "title": "Renew {{name}}?",
       "body": "Pay {{price}} for one more period. Early payment reserves the next period and keeps your current paid time. If the period has ended, the new period starts when payment is confirmed. This does not enable automatic charging.",
-      "confirm": "Continue to bank"
+      "confirm": "Go to the bank"
     }
   },
   "status": {
@@ -131,7 +132,7 @@
     "noAnswer": "We didn’t get an answer. Check your connection and try again.",
     "other": "This couldn’t be done.",
     "refunding": "This payment is already being refunded. You don’t need to do anything.",
-    "renewalChanged": "Billing has changed. Reload the page and check the paid periods before continuing.",
+    "renewalChanged": "Billing has changed, and the page has been read again. Check the paid periods and the price before continuing.",
     "reservedPaid": "Your next period is already paid. To change to another paid plan now, contact support to refund that future period first."
   },
   "chooseOrganization": "Choose an organization",

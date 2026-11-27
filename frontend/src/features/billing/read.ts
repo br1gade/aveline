@@ -1,4 +1,12 @@
-import type { Invoice, InvoiceLine, Plan, PlanChoice, Subscription, PendingFree } from './types';
+import type {
+  Invoice,
+  InvoiceLine,
+  PendingFree,
+  PendingRenewal,
+  Plan,
+  PlanChoice,
+  Subscription,
+} from './types';
 
 /**
  * Each field kept is named. A payment's order number opens its state to anyone (docs/API.md §1), so
@@ -39,9 +47,7 @@ function readLine(wire: unknown): InvoiceLine[] {
 
 export function readInvoice(wire: InvoiceWire): Invoice {
   return {
-    kind: wire.kind ?? 'PURCHASE',
-    periodStart: wire.periodStart ?? null,
-    periodEnd: wire.periodEnd ?? null,
+    kind: wire.kind,
     number: wire.number,
     status: wire.status,
     subtotalMinor: wire.subtotalMinor,
@@ -94,9 +100,13 @@ export function readSubscription(wire: SubscriptionWire): Subscription {
   const { key, name, priceMinor, currency, interval, display } = wire.plan;
   const pending = wire.pendingFree ?? null;
   return {
-    canRenew: wire.canRenew ?? false,
-    paidThrough: wire.paidThrough ?? wire.currentPeriodEnd,
-    pendingRenewal: wire.pendingRenewal ?? null,
+    canRenew: wire.canRenew,
+    paidThrough: wire.paidThrough,
+    pendingRenewal: wire.pendingRenewal && {
+      number: wire.pendingRenewal.number,
+      start: wire.pendingRenewal.start,
+      end: wire.pendingRenewal.end,
+    },
     status: wire.status,
     plan: { key, name, priceMinor, currency, interval, display: readPlanDisplay(display) },
     currentPeriodEnd: wire.currentPeriodEnd,
@@ -109,9 +119,9 @@ export function readSubscription(wire: SubscriptionWire): Subscription {
 interface ChoiceWire {
   subscription: {
     pendingFree?: PendingFree | null;
-    pendingRenewal?: { number: string; start: string; end: string } | null;
+    pendingRenewal?: PendingRenewal | null;
   } | null;
-  invoice?: { number?: string; status?: string; periodStart?: string | null } | null;
+  invoice?: { number?: string; status?: string } | null;
   payment?: { redirectUrl: string | null } | null;
 }
 

@@ -41,6 +41,9 @@ function plan(key: string, priceMinor: string): Plan {
 
 function subscription(overrides: Partial<Subscription> = {}): Subscription {
   return {
+    canRenew: false,
+    paidThrough: LATER,
+    pendingRenewal: null,
     status: 'ACTIVE',
     plan: {
       key: 'paid',
@@ -58,6 +61,7 @@ function subscription(overrides: Partial<Subscription> = {}): Subscription {
 }
 
 const invoice = (overrides: Partial<Invoice> = {}): Invoice => ({
+  kind: 'PURCHASE',
   number: 'AV-2026-000001',
   status: 'ISSUED',
   subtotalMinor: '25000',
@@ -102,7 +106,7 @@ describe('where a subscription stands', () => {
     [{ status: 'TRIALING' }, 'trial'],
     [{ status: 'PAST_DUE' }, 'pastDue'],
     [{ status: 'CANCELLED' }, 'ended'],
-    [{ status: 'EXPIRED' }, 'ended'],
+    [{ status: 'EXPIRED' }, 'lapsed'],
     [{ status: 'SOMETHING_NEW' }, 'unknown'],
   ])('%o is %s', (overrides, expected) => {
     expect(standing(subscription(overrides), NOW)).toBe(expected);
@@ -196,6 +200,25 @@ describe('renewal refusal actions', () => {
       'uncertain',
     );
   });
+
+  it.each([
+    'RENEWAL_UNAVAILABLE',
+    'RENEWAL_PERIOD_CHANGED',
+    'RENEWAL_QUOTE_CHANGED',
+    'INVOICE_CLOSED',
+  ])('%s reads the page again, as its action is RELOAD', (code) => {
+    expect(billingRefusalOf(apiError(409, 'changed', code))).toMatchObject({
+      kind: 'renewalChanged',
+      isStale: true,
+    });
+  });
+
+  it('does not read a renewal code it does not know as asking for a reload', () => {
+    expect(billingRefusalOf(apiError(409, 'Something new', 'RENEWAL_SOMETHING_NEW'))).toEqual({
+      kind: 'other',
+      sentence: 'Something new',
+    });
+  });
 });
 
 describe('the readers keep no order number and no bank address beyond the one to follow', () => {
@@ -203,6 +226,7 @@ describe('the readers keep no order number and no bank address beyond the one to
 
   it('an invoice', () => {
     const wire = {
+      kind: 'PURCHASE' as const,
       number: 'AV-2026-000001',
       status: 'ISSUED',
       subtotalMinor: '25000',
@@ -304,7 +328,7 @@ describe('the readers keep no order number and no bank address beyond the one to
   });
 
   it('distinguishes an already active paid renewal replay from a reserved one', () => {
-    const invoice = { number: 'AV-2026-000001', status: 'PAID', periodStart: EARLIER };
+    const invoice = { number: 'AV-2026-000001', status: 'PAID' };
     expect(readChoice({ subscription: null, invoice, payment: null })).toEqual({
       kind: 'activated',
     });

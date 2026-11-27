@@ -11,12 +11,13 @@ const BY_STATUS: Readonly<Record<string, Standing>> = {
   TRIALING: 'trial',
   PAST_DUE: 'pastDue',
   CANCELLED: 'ended',
-  EXPIRED: 'ended',
+  EXPIRED: 'lapsed',
 };
 
 /**
- * Where a subscription stands at `now`. Nothing renews or moves one once its period passes
- * (docs/API.md §10), so an `ACTIVE` one past its end is said to have ended (FR-110).
+ * Where a subscription stands at `now`. Nothing renews by itself: the backend moves a lapsed paid
+ * period to `EXPIRED`, which can be renewed by hand (docs/API.md, "Manual renewal", FR-110 e). An
+ * `ACTIVE` one past its end is the moment before the backend's next read, so it reads the same.
  */
 export function standing(subscription: Subscription, now: number): Standing {
   if (subscription.status !== 'ACTIVE') return BY_STATUS[subscription.status] ?? 'unknown';

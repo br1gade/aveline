@@ -11,13 +11,14 @@
     "cancel": "Résilier à la fin de la période",
     "resume": "Conserver la formule",
     "movesToFree": "Passe à l’offre gratuite le {{date}}.",
-    "renew": "Renouveler le forfait",
+    "renew": "Renouveler la formule",
     "renewalReserved": "Prochaine période payée : {{start}}–{{end}}."
   },
   "standing": {
     "active": "Active jusqu’au {{date}}.",
     "ending": "Se termine le {{date}}. Vous la gardez jusque-là et pouvez encore la conserver.",
     "lapsed": "La période s’est terminée le {{date}}. Rien ne se renouvelle tout seul : choisissez une formule pour recommencer.",
+    "lapsedRenew": "La période s’est terminée le {{date}}. Renouvelez-la pour commencer une nouvelle période, ou choisissez une autre formule.",
     "trial": "À l’essai jusqu’au {{date}}.",
     "pastDue": "Un paiement est en retard. La période court jusqu’au {{date}}.",
     "ended": "Cette formule est terminée. Choisissez une formule pour recommencer.",
@@ -88,7 +89,7 @@
     "renew": {
       "title": "Renouveler {{name}} ?",
       "body": "Payez {{price}} pour une période supplémentaire. Le paiement anticipé réserve la prochaine période et conserve la période déjà payée. Si elle est terminée, la nouvelle période commence à la confirmation du paiement. Aucun prélèvement automatique ne sera activé.",
-      "confirm": "Continuer vers la banque"
+      "confirm": "Aller à la banque"
     }
   },
   "status": {
@@ -135,8 +136,8 @@
     "noAnswer": "Nous n’avons pas reçu de réponse. Vérifiez votre connexion et réessayez.",
     "other": "Cela n’a pas pu être fait.",
     "refunding": "Ce paiement est déjà en cours de remboursement. Vous n’avez rien à faire.",
-    "renewalChanged": "La facturation a changé. Rechargez la page et vérifiez les périodes payées.",
-    "reservedPaid": "Votre prochaine période est déjà payée. Pour changer de forfait payant maintenant, contactez l’assistance afin de rembourser cette période future."
+    "renewalChanged": "La facturation a changé. La page a été relue : vérifiez les périodes payées et le prix avant de continuer.",
+    "reservedPaid": "Votre prochaine période est déjà payée. Pour changer de formule payante maintenant, contactez l’assistance afin de rembourser d’abord cette période future."
   },
   "chooseOrganization": "Choisir une organisation",
   "return": {

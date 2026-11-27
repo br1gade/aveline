@@ -439,7 +439,7 @@ describe('the billing page', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Renew plan' }));
     const dialog = await screen.findByRole('alertdialog');
     expect(dialog).toHaveTextContent('keeps your current paid time');
-    await userEvent.click(within(dialog).getByRole('button', { name: 'Continue to bank' }));
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Go to the bank' }));
     await vi.waitFor(() => expect(leaveForBank).toHaveBeenCalledWith('https://bank.example/renew'));
     expect(body).toEqual({
       provider: 'AMERIABANK',
@@ -463,6 +463,21 @@ describe('the billing page', () => {
     await openPage();
     expect(screen.getByText(/Next period paid/)).toBeVisible();
     expect(screen.getByText(/Ends on/)).toHaveTextContent('2027');
+    expect(screen.queryByRole('button', { name: 'Renew plan' })).not.toBeInTheDocument();
+  });
+  it('offers renewing an expired plan beside its end, not starting again', async () => {
+    answerReads({ ...held, status: 'EXPIRED', canRenew: true });
+    await openPage();
+    expect(screen.getByText(/The period ended on/)).toHaveTextContent('Renew it');
+    expect(screen.queryByText(/choose a plan to start again/i)).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Renew plan' })).toBeVisible();
+  });
+  it('says only to choose a plan when an expired plan cannot be renewed', async () => {
+    answerReads({ ...held, status: 'EXPIRED', canRenew: false });
+    await openPage();
+    expect(screen.getByText(/The period ended on/)).toHaveTextContent(
+      'choose a plan to start again',
+    );
     expect(screen.queryByRole('button', { name: 'Renew plan' })).not.toBeInTheDocument();
   });
   it('does not offer renewal while paid payments are unavailable', async () => {

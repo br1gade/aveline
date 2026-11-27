@@ -29,7 +29,7 @@ export function CancelDialog({
     context,
     billingRefusalOf,
   );
-  const date = day(subscription.paidThrough ?? subscription.currentPeriodEnd);
+  const date = day(subscription.paidThrough);
   return (
     <AskFirstDialog
       onOpenChange={onOpenChange}
@@ -89,6 +89,7 @@ function HeldPlan({ subscription, now, page, onCancel, onRenew }: HeldPlanProps)
   const { refusal, isBusy, keep } = useKeep(page);
   const canWrite = useCan('billing:write');
   const canCancel = canWrite && ['active', 'trial', 'pastDue'].includes(state);
+  const renew = renewOffered(subscription, canWrite, onRenew);
   const pending = subscription.pendingFree;
   return (
     <div className="border-border flex flex-col gap-3 border p-4">
@@ -96,9 +97,11 @@ function HeldPlan({ subscription, now, page, onCancel, onRenew }: HeldPlanProps)
         {plan.display.name}
       </p>
       <p className="m-0">{price(plan.priceMinor, plan.currency, plan.interval)}</p>
-      <p className="m-0">
-        {t(`standing.${state}`, { date: day(standingDate(subscription, state)) })}
-      </p>
+      <StandingLine
+        subscription={subscription}
+        state={state}
+        isRenewOffered={renew !== undefined}
+      />
       {pending ? (
         <p className="m-0 font-medium">
           {t('current.movesToFree', { date: day(pending.effectiveAt) })}
@@ -107,7 +110,11 @@ function HeldPlan({ subscription, now, page, onCancel, onRenew }: HeldPlanProps)
       <ReservedPeriod subscription={subscription} />
       {refusal ? <BillingProblem refusal={refusal} /> : null}
       <div className="flex flex-wrap gap-2">
-        {canWrite ? <RenewalAction subscription={subscription} onRenew={onRenew} /> : null}
+        {renew ? (
+          <Button className={WRAPPING_BUTTON} onClick={renew}>
+            {t('current.renew')}
+          </Button>
+        ) : null}
         {canCancel ? (
           <Button variant="outline" className={WRAPPING_BUTTON} onClick={onCancel}>
             {t('current.cancel')}
@@ -163,10 +170,30 @@ export function CurrentPlan({ read, now, page, onCancel, onRenew }: CurrentPlanP
   );
 }
 
-function standingDate(subscription: Subscription, state: ReturnType<typeof standing>) {
-  return state === 'ending'
-    ? (subscription.paidThrough ?? subscription.currentPeriodEnd)
-    : subscription.currentPeriodEnd;
+/** "Renew plan" is the backend's to offer (`canRenew`), to someone who may pay, while payments are on. */
+function renewOffered(
+  subscription: Subscription,
+  canWrite: boolean,
+  onRenew: HeldPlanProps['onRenew'],
+) {
+  return canWrite && subscription.canRenew ? onRenew : undefined;
+}
+
+/** A lapsed plan offered renewal says so, rather than only "choose a plan" (design PD-217). */
+function StandingLine({
+  subscription,
+  state,
+  isRenewOffered,
+}: {
+  subscription: Subscription;
+  state: ReturnType<typeof standing>;
+  isRenewOffered: boolean;
+}) {
+  const { t } = useTranslation('billing');
+  const day = useBillingDay();
+  const key = state === 'lapsed' && isRenewOffered ? 'lapsedRenew' : state;
+  const date = state === 'ending' ? subscription.paidThrough : subscription.currentPeriodEnd;
+  return <p className="m-0">{t(`standing.${key}`, { date: day(date) })}</p>;
 }
 
 function ReservedPeriod({ subscription }: { subscription: Subscription }) {
@@ -177,14 +204,5 @@ function ReservedPeriod({ subscription }: { subscription: Subscription }) {
     <p className="m-0 font-medium">
       {t('current.renewalReserved', { start: day(reserved.start), end: day(reserved.end) })}
     </p>
-  ) : null;
-}
-
-function RenewalAction({ subscription, onRenew }: Pick<HeldPlanProps, 'subscription' | 'onRenew'>) {
-  const { t } = useTranslation('billing');
-  return subscription.canRenew && onRenew ? (
-    <Button className={WRAPPING_BUTTON} onClick={onRenew}>
-      {t('current.renew')}
-    </Button>
   ) : null;
 }
